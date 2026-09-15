@@ -9,9 +9,11 @@ import {
   LightbulbIcon,
   ChevronRightIcon,
   HomeIcon,
+  MinusCircleIcon,
 } from "@/components/icons";
 import { DonutChart } from "@/components/DonutChart";
-import type { CategorySlice } from "@/lib/supabase/queries/transactions";
+import { TrendChart } from "@/components/TrendChart";
+import type { CategorySlice, MonthlyTrendPoint } from "@/lib/supabase/queries/transactions";
 
 function formatRupiah(amount: number) {
   return new Intl.NumberFormat("id-ID", {
@@ -37,6 +39,10 @@ export function DashboardView({
   totalIncome,
   totalExpense,
   categories,
+  budgetTarget,
+  budgetRealisasi,
+  overBudgetCategories,
+  trend,
 }: {
   displayName: string;
   familyName: string;
@@ -45,8 +51,15 @@ export function DashboardView({
   totalIncome: number;
   totalExpense: number;
   categories: CategorySlice[];
+  budgetTarget: number;
+  budgetRealisasi: number;
+  overBudgetCategories: string[];
+  trend: MonthlyTrendPoint[];
 }) {
   const [balanceVisible, setBalanceVisible] = useState(true);
+  const netBalance = totalIncome - totalExpense;
+  const budgetPercentage =
+    budgetTarget > 0 ? Math.round((budgetRealisasi / budgetTarget) * 100) : 0;
 
   const today = new Intl.DateTimeFormat("id-ID", {
     weekday: "long",
@@ -109,17 +122,27 @@ export function DashboardView({
         </p>
       </Link>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="rounded-2xl bg-bg-surface border border-border-subtle p-4">
-          <p className="text-sm text-text-secondary">Pemasukan</p>
-          <p className="text-lg font-semibold text-success mt-1">
+      <div className="grid grid-cols-3 gap-3">
+        <div className="rounded-2xl bg-bg-surface border border-border-subtle p-3">
+          <p className="text-xs text-text-secondary">Pemasukan</p>
+          <p className="text-sm font-semibold text-success mt-1">
             {balanceVisible ? formatRupiah(totalIncome) : "••••••"}
           </p>
         </div>
-        <div className="rounded-2xl bg-bg-surface border border-border-subtle p-4">
-          <p className="text-sm text-text-secondary">Pengeluaran</p>
-          <p className="text-lg font-semibold text-danger mt-1">
+        <div className="rounded-2xl bg-bg-surface border border-border-subtle p-3">
+          <p className="text-xs text-text-secondary">Pengeluaran</p>
+          <p className="text-sm font-semibold text-danger mt-1">
             {balanceVisible ? formatRupiah(totalExpense) : "••••••"}
+          </p>
+        </div>
+        <div className="rounded-2xl bg-bg-surface border border-border-subtle p-3">
+          <p className="text-xs text-text-secondary">Saldo Bersih</p>
+          <p
+            className={`text-sm font-semibold mt-1 ${
+              netBalance >= 0 ? "text-success" : "text-danger"
+            }`}
+          >
+            {balanceVisible ? formatRupiah(netBalance) : "••••••"}
           </p>
         </div>
       </div>
@@ -144,6 +167,63 @@ export function DashboardView({
             Belum ada transaksi pengeluaran bulan ini.
           </p>
         )}
+      </div>
+
+      <Link
+        href="/budgets"
+        className="rounded-2xl bg-bg-surface border border-border-subtle p-4 block"
+      >
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-sm font-medium text-text-primary">Realisasi Anggaran</p>
+          <span className="text-xs text-text-secondary">{budgetPercentage}%</span>
+        </div>
+
+        {budgetTarget > 0 ? (
+          <>
+            <div className="h-1.5 rounded-full bg-bg-page overflow-hidden">
+              <div
+                className={`h-full rounded-full ${
+                  budgetPercentage > 100 ? "bg-danger" : "bg-success"
+                }`}
+                style={{ width: `${Math.min(budgetPercentage, 100)}%` }}
+              />
+            </div>
+            <p className="text-xs text-text-secondary mt-2">
+              {formatRupiah(budgetRealisasi)} dari {formatRupiah(budgetTarget)}
+            </p>
+          </>
+        ) : (
+          <p className="text-sm text-text-muted">Belum ada anggaran bulan ini.</p>
+        )}
+      </Link>
+
+      {overBudgetCategories.length > 0 && (
+        <div className="rounded-2xl bg-danger/10 border border-danger/30 p-4 flex items-start gap-3">
+          <span className="w-8 h-8 rounded-full bg-danger/15 text-danger flex items-center justify-center shrink-0">
+            <MinusCircleIcon className="w-4.5 h-4.5" />
+          </span>
+          <p className="text-sm text-text-secondary">
+            <span className="text-danger font-medium">
+              {overBudgetCategories.length} kategori melebihi anggaran:
+            </span>{" "}
+            {overBudgetCategories.join(", ")}
+          </p>
+        </div>
+      )}
+
+      <div className="rounded-2xl bg-bg-surface border border-border-subtle p-4">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm font-medium text-text-primary">Tren Bulanan</p>
+          <div className="flex items-center gap-3 text-[10px] text-text-secondary">
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-success" /> Pemasukan
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-danger" /> Pengeluaran
+            </span>
+          </div>
+        </div>
+        <TrendChart data={trend} />
       </div>
 
       <div className="rounded-2xl bg-bg-surface border border-border-subtle p-4 flex items-start gap-3">

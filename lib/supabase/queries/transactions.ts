@@ -84,6 +84,53 @@ export async function getMonthlySummary(
   return { totalIncome, totalExpense, categories: categorySlices };
 }
 
+export interface MonthlyTrendPoint {
+  monthLabel: string;
+  income: number;
+  expense: number;
+}
+
+export async function getMonthlyTrend(
+  supabase: Client,
+  familyId: string,
+  monthsCount = 6
+): Promise<MonthlyTrendPoint[]> {
+  const now = new Date();
+  const rangeStart = new Date(now.getFullYear(), now.getMonth() - (monthsCount - 1), 1);
+  const rangeEndExclusive = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+  const { data, error } = await supabase
+    .from("transactions")
+    .select("date, type, amount")
+    .eq("family_id", familyId)
+    .gte("date", toLocalISODate(rangeStart))
+    .lt("date", toLocalISODate(rangeEndExclusive));
+
+  if (error) throw error;
+
+  const buckets = new Map<string, { income: number; expense: number }>();
+  for (let i = 0; i < monthsCount; i++) {
+    const d = new Date(rangeStart.getFullYear(), rangeStart.getMonth() + i, 1);
+    buckets.set(`${d.getFullYear()}-${d.getMonth()}`, { income: 0, expense: 0 });
+  }
+
+  for (const t of data) {
+    const d = new Date(t.date + "T00:00:00");
+    const bucket = buckets.get(`${d.getFullYear()}-${d.getMonth()}`);
+    if (!bucket) continue;
+    if (t.type === "Pemasukan") bucket.income += t.amount;
+    else if (t.type === "Pengeluaran") bucket.expense += t.amount;
+  }
+
+  return Array.from(buckets.entries()).map(([key, v]) => {
+    const [year, month] = key.split("-").map(Number);
+    const monthLabel = new Intl.DateTimeFormat("id-ID", { month: "short" }).format(
+      new Date(year, month, 1)
+    );
+    return { monthLabel, income: v.income, expense: v.expense };
+  });
+}
+
 export interface TransactionWithDetails {
   id: string;
   date: string;
