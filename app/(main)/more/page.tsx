@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getMyFamilyMembership, getFamilyInviteCode } from "@/lib/supabase/queries/families";
 import { LogoutButton } from "@/components/LogoutButton";
 import { InviteCodeCard } from "@/components/InviteCodeCard";
+import { InstallHint } from "@/components/InstallHint";
 
 export default async function MorePage() {
   const supabase = await createClient();
@@ -27,6 +28,8 @@ export default async function MorePage() {
       </div>
 
       {inviteCode && <InviteCodeCard inviteCode={inviteCode} />}
+
+      <InstallHint />
 
       <LogoutButton />
     </div>
