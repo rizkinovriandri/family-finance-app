@@ -18,6 +18,7 @@ import {
   CURRENCIES,
 } from "@/lib/constants/enums";
 import { CurrencyInput } from "@/components/CurrencyInput";
+import { UserIcon } from "@/components/icons";
 
 type Member = { id: string; display_name: string };
 
@@ -58,6 +59,8 @@ export function AccountsManager({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const memberNameById = new Map(members.map((m) => [m.id, m.display_name]));
 
   function openCreateForm() {
     setEditingId(null);
@@ -174,9 +177,17 @@ export function AccountsManager({
               </span>
             </div>
 
-            <p className="text-xl font-bold text-text-primary mt-3">
-              {formatRupiah(account.current_balance)}
-            </p>
+            <div className="flex items-end justify-between mt-3">
+              <p className="text-xl font-bold text-text-primary">
+                {formatRupiah(account.current_balance)}
+              </p>
+              {account.owner_member_id && memberNameById.get(account.owner_member_id) && (
+                <span className="inline-flex items-center gap-1 text-xs text-text-secondary bg-bg-page rounded-full px-2.5 py-1">
+                  <UserIcon className="w-3.5 h-3.5" />
+                  {memberNameById.get(account.owner_member_id)}
+                </span>
+              )}
+            </div>
 
             <div className="flex gap-3 mt-3">
               <button

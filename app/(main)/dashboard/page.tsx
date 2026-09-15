@@ -27,6 +27,7 @@ export default async function DashboardPage() {
   return (
     <DashboardView
       displayName={membership.display_name}
+      familyName={membership.family_name}
       totalBalance={totalBalance}
       accountsCount={accounts.length}
       totalIncome={summary.totalIncome}

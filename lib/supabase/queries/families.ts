@@ -9,7 +9,7 @@ export async function getMyFamilyMembership(supabase: Client) {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data, error } = await supabase
+  const { data: membership, error } = await supabase
     .from("family_members")
     .select("id, family_id, display_name")
     .eq("user_id", user.id)
@@ -17,7 +17,17 @@ export async function getMyFamilyMembership(supabase: Client) {
     .maybeSingle();
 
   if (error) throw error;
-  return data;
+  if (!membership) return null;
+
+  const { data: family, error: familyError } = await supabase
+    .from("families")
+    .select("name")
+    .eq("id", membership.family_id)
+    .single();
+
+  if (familyError) throw familyError;
+
+  return { ...membership, family_name: family.name };
 }
 
 export async function listFamilyMembers(supabase: Client, familyId: string) {

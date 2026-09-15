@@ -2,7 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { EyeIcon, GearIcon, BellIcon, LightbulbIcon, ChevronRightIcon } from "@/components/icons";
+import {
+  EyeIcon,
+  GearIcon,
+  BellIcon,
+  LightbulbIcon,
+  ChevronRightIcon,
+  HomeIcon,
+} from "@/components/icons";
 import { DonutChart } from "@/components/DonutChart";
 import type { CategorySlice } from "@/lib/supabase/queries/transactions";
 
@@ -24,6 +31,7 @@ function getGreeting() {
 
 export function DashboardView({
   displayName,
+  familyName,
   totalBalance,
   accountsCount,
   totalIncome,
@@ -31,6 +39,7 @@ export function DashboardView({
   categories,
 }: {
   displayName: string;
+  familyName: string;
   totalBalance: number;
   accountsCount: number;
   totalIncome: number;
@@ -54,6 +63,10 @@ export function DashboardView({
             {getGreeting()}, {displayName} 👋
           </p>
           <p className="text-sm text-text-secondary mt-0.5">{today}</p>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/15 text-accent text-xs font-medium px-2.5 py-1 mt-2">
+            <HomeIcon className="w-3.5 h-3.5" />
+            Keluarga {familyName}
+          </span>
         </div>
         <div className="flex gap-2 shrink-0">
           <Link
