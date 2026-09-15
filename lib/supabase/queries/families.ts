@@ -20,6 +20,17 @@ export async function getMyFamilyMembership(supabase: Client) {
   return data;
 }
 
+export async function listFamilyMembers(supabase: Client, familyId: string) {
+  const { data, error } = await supabase
+    .from("family_members")
+    .select("id, display_name")
+    .eq("family_id", familyId)
+    .order("created_at", { ascending: true });
+
+  if (error) throw error;
+  return data;
+}
+
 export async function createFamilyWithOwner(
   supabase: Client,
   familyName: string,

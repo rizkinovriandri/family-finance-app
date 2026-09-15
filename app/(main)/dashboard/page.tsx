@@ -1,6 +1,16 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getMyFamilyMembership } from "@/lib/supabase/queries/families";
+import { listAccounts } from "@/lib/supabase/queries/accounts";
 import { CreateFamilyForm } from "@/components/CreateFamilyForm";
+
+function formatRupiah(amount: number) {
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -14,6 +24,9 @@ export default async function DashboardPage() {
     );
   }
 
+  const accounts = await listAccounts(supabase, membership.family_id);
+  const totalBalance = accounts.reduce((sum, a) => sum + a.current_balance, 0);
+
   return (
     <div className="px-4 pt-8 flex flex-col gap-4">
       <div>
@@ -21,10 +34,17 @@ export default async function DashboardPage() {
         <h1 className="text-2xl font-semibold text-text-primary">Beranda</h1>
       </div>
 
-      <div className="rounded-2xl bg-bg-surface border border-border-subtle p-4">
-        <p className="text-sm text-text-secondary">Total saldo semua akun</p>
-        <p className="text-3xl font-bold text-text-primary mt-1">Rp 0</p>
-      </div>
+      <Link
+        href="/accounts"
+        className="rounded-2xl bg-bg-surface border border-border-subtle p-4 block"
+      >
+        <p className="text-sm text-text-secondary">
+          Total saldo · {accounts.length} akun
+        </p>
+        <p className="text-3xl font-bold text-text-primary mt-1">
+          {formatRupiah(totalBalance)}
+        </p>
+      </Link>
 
       <div className="grid grid-cols-2 gap-4">
         <div className="rounded-2xl bg-bg-surface border border-border-subtle p-4">
@@ -37,8 +57,17 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <p className="text-sm text-text-muted text-center mt-4">
-        Belum ada akun & transaksi — fitur ini menyusul.
+      {accounts.length === 0 && (
+        <p className="text-sm text-text-muted text-center mt-4">
+          Belum ada akun.{" "}
+          <Link href="/accounts" className="text-accent">
+            Tambah akun pertama
+          </Link>
+        </p>
+      )}
+
+      <p className="text-sm text-text-muted text-center mt-2">
+        Pencatatan transaksi menyusul.
       </p>
     </div>
   );
