@@ -150,8 +150,8 @@ Aturan ini **wajib diikuti** saat implementasi logic transaksi, karena jadi acua
 ## 6. Fitur & Scope
 
 ### MVP (versi pertama — wajib ada)
-- [ ] Auth (register/login, multi-user per keluarga)
-- [ ] Manajemen akun (CRUD `accounts`) — prasyarat untuk transaksi
+- [x] Auth (register/login, multi-user per keluarga) — termasuk kode undangan keluarga & reset password
+- [x] Manajemen akun (CRUD `accounts`) — prasyarat untuk transaksi
 - [ ] CRUD transaksi (income/expense/transfer, sesuai aturan Bagian 5)
 - [ ] Budget bulanan per kategori (target + realisasi otomatis)
 - [ ] Dashboard: total saldo semua akun, total pemasukan/pengeluaran, saldo bersih, realisasi anggaran vs target, kategori yang melebihi budget, grafik tren bulanan
