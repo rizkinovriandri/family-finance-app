@@ -25,6 +25,15 @@ function formatRupiah(amount: number) {
   }).format(amount);
 }
 
+function formatRowDate(dateStr: string) {
+  const date = new Date(dateStr + "T00:00:00");
+  return new Intl.DateTimeFormat("id-ID", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  }).format(date);
+}
+
 function dateGroupLabel(dateStr: string) {
   const date = new Date(dateStr + "T00:00:00");
   const today = new Date();
@@ -215,17 +224,22 @@ export function TransactionsManager({
                   </span>
 
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-start justify-between gap-2">
                       <p className="text-sm font-medium text-text-primary truncate">
                         {t.description || t.categoryName}
                       </p>
-                      <p
-                        className={`text-sm font-semibold shrink-0 ${
-                          isIncome ? "text-success" : "text-danger"
-                        }`}
-                      >
-                        {isIncome ? "+" : "-"} {formatRupiah(t.amount)}
-                      </p>
+                      <div className="text-right shrink-0">
+                        <p
+                          className={`text-sm font-semibold ${
+                            isIncome ? "text-success" : "text-danger"
+                          }`}
+                        >
+                          {isIncome ? "+" : "-"} {formatRupiah(t.amount)}
+                        </p>
+                        <p className="text-[10px] text-text-muted mt-0.5">
+                          {formatRowDate(t.date)}
+                        </p>
+                      </div>
                     </div>
                     <p className="text-xs text-text-secondary truncate mt-0.5">
                       {filterAccountId
