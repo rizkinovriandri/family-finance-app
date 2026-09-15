@@ -1,10 +1,34 @@
-export default function BudgetsPage() {
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { getMyFamilyMembership } from "@/lib/supabase/queries/families";
+import { listCategories } from "@/lib/supabase/queries/categories";
+import { listBudgetsForMonth } from "@/lib/supabase/queries/budgets";
+import { BudgetsManager } from "@/components/BudgetsManager";
+
+export default async function BudgetsPage() {
+  const supabase = await createClient();
+  const membership = await getMyFamilyMembership(supabase);
+
+  if (!membership) {
+    redirect("/dashboard");
+  }
+
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const [categories, budgets] = await Promise.all([
+    listCategories(supabase),
+    listBudgetsForMonth(supabase, membership.family_id, monthStart),
+  ]);
+
   return (
-    <div className="px-4 pt-8">
-      <h1 className="text-2xl font-semibold text-text-primary">Budget</h1>
-      <p className="text-sm text-text-muted mt-4 text-center">
-        Belum ada budget bulanan — fitur ini menyusul.
-      </p>
+    <div className="px-4 pt-8 pb-4">
+      <BudgetsManager
+        familyId={membership.family_id}
+        categories={categories}
+        initialBudgets={budgets}
+        initialMonth={monthStart.toISOString().slice(0, 10)}
+      />
     </div>
   );
 }
