@@ -47,7 +47,8 @@ body {
     outline: none;
   }
 
-  .input:focus {
+  .input:focus,
+  .input:focus-within {
     border-color: var(--color-accent);
   }
 }

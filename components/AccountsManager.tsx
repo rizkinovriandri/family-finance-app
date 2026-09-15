@@ -17,6 +17,7 @@ import {
   ACCOUNT_STATUSES,
   CURRENCIES,
 } from "@/lib/constants/enums";
+import { CurrencyInput } from "@/components/CurrencyInput";
 
 type Member = { id: string; display_name: string };
 
@@ -297,14 +298,11 @@ export function AccountsManager({
           </div>
 
           <Field label="Saldo awal" error={fieldErrors.opening_balance}>
-            <input
-              type="number"
-              min={0}
+            <CurrencyInput
               value={form.opening_balance}
-              onChange={(e) =>
-                setForm({ ...form, opening_balance: Number(e.target.value) })
+              onChange={(opening_balance) =>
+                setForm({ ...form, opening_balance })
               }
-              className="input"
             />
           </Field>
 
