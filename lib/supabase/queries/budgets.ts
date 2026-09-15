@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/types/database";
 import type { BudgetFormValues } from "@/lib/validation/budget";
+import { toLocalISODate } from "@/lib/utils/date";
 
 type Client = SupabaseClient<Database>;
 
@@ -16,7 +17,7 @@ export interface BudgetWithRealization {
 }
 
 function toMonthStart(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), 1).toISOString().slice(0, 10);
+  return toLocalISODate(new Date(date.getFullYear(), date.getMonth(), 1));
 }
 
 function statusFor(percentage: number): BudgetWithRealization["status"] {

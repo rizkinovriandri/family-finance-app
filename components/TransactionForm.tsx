@@ -16,13 +16,14 @@ import { PAYMENT_METHODS } from "@/lib/constants/enums";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { CategoryPicker } from "@/components/CategoryPicker";
 import type { Category } from "@/lib/supabase/queries/categories";
+import { toLocalISODate } from "@/lib/utils/date";
 
 type Account = { id: string; name: string };
 type Member = { id: string; display_name: string };
 type TxType = "Pengeluaran" | "Pemasukan" | "Transfer";
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return toLocalISODate(new Date());
 }
 
 export function TransactionForm({

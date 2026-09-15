@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, TransactionType } from "@/lib/types/database";
 import { getCategoryStyle } from "@/lib/constants/enums";
+import { toLocalISODate } from "@/lib/utils/date";
 import type {
   TransactionFormValues,
   TransferFormValues,
@@ -25,8 +26,7 @@ export interface MonthlySummary {
 function monthRange(monthStart: Date) {
   const start = new Date(monthStart.getFullYear(), monthStart.getMonth(), 1);
   const end = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 1);
-  const toISODate = (d: Date) => d.toISOString().slice(0, 10);
-  return { start: toISODate(start), end: toISODate(end) };
+  return { start: toLocalISODate(start), end: toLocalISODate(end) };
 }
 
 export async function getMonthlySummary(

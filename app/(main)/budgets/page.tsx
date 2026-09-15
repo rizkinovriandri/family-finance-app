@@ -4,6 +4,7 @@ import { getMyFamilyMembership } from "@/lib/supabase/queries/families";
 import { listCategories } from "@/lib/supabase/queries/categories";
 import { listBudgetsForMonth } from "@/lib/supabase/queries/budgets";
 import { BudgetsManager } from "@/components/BudgetsManager";
+import { toLocalISODate } from "@/lib/utils/date";
 
 export default async function BudgetsPage() {
   const supabase = await createClient();
@@ -27,7 +28,7 @@ export default async function BudgetsPage() {
         familyId={membership.family_id}
         categories={categories}
         initialBudgets={budgets}
-        initialMonth={monthStart.toISOString().slice(0, 10)}
+        initialMonth={toLocalISODate(monthStart)}
       />
     </div>
   );
