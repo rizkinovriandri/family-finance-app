@@ -40,7 +40,7 @@ export async function getMonthlySummary(
     await Promise.all([
       supabase
         .from("transactions")
-        .select("type, amount, category_id")
+        .select("type, amount, category_id, transfer_pair_id")
         .eq("family_id", familyId)
         .gte("date", start)
         .lt("date", end),
@@ -57,6 +57,11 @@ export async function getMonthlySummary(
   const expenseByCategory = new Map<string, number>();
 
   for (const t of transactions) {
+    // Transfer antar akun (2 baris berpasangan) bukan pemasukan/pengeluaran
+    // asli — cuma perpindahan uang antar akun sendiri, jadi tidak dihitung
+    // di ringkasan bulanan.
+    if (t.transfer_pair_id) continue;
+
     if (t.type === "Pemasukan") {
       totalIncome += t.amount;
     } else if (t.type === "Pengeluaran") {
@@ -101,7 +106,7 @@ export async function getMonthlyTrend(
 
   const { data, error } = await supabase
     .from("transactions")
-    .select("date, type, amount")
+    .select("date, type, amount, transfer_pair_id")
     .eq("family_id", familyId)
     .gte("date", toLocalISODate(rangeStart))
     .lt("date", toLocalISODate(rangeEndExclusive));
@@ -115,6 +120,10 @@ export async function getMonthlyTrend(
   }
 
   for (const t of data) {
+    // Transfer antar akun bukan pemasukan/pengeluaran asli — lihat catatan
+    // di getMonthlySummary.
+    if (t.transfer_pair_id) continue;
+
     const d = new Date(t.date + "T00:00:00");
     const bucket = buckets.get(`${d.getFullYear()}-${d.getMonth()}`);
     if (!bucket) continue;
