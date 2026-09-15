@@ -153,8 +153,8 @@ Aturan ini **wajib diikuti** saat implementasi logic transaksi, karena jadi acua
 - [x] Auth (register/login, multi-user per keluarga) — termasuk kode undangan keluarga & reset password
 - [x] Manajemen akun (CRUD `accounts`) — prasyarat untuk transaksi
 - [x] CRUD transaksi (income/expense/transfer, sesuai aturan Bagian 5) — termasuk riwayat transaksi per akun
-- [ ] Budget bulanan per kategori (target + realisasi otomatis)
-- [ ] Dashboard: total saldo semua akun, total pemasukan/pengeluaran, saldo bersih, realisasi anggaran vs target, kategori yang melebihi budget, grafik tren bulanan
+- [x] Budget bulanan per kategori (target + realisasi otomatis) — termasuk duplikasi anggaran ke bulan berikutnya
+- [x] Dashboard: total saldo semua akun, total pemasukan/pengeluaran, saldo bersih, realisasi anggaran vs target, kategori yang melebihi budget, grafik tren bulanan
 - [ ] PWA (installable, "Add to Home Screen")
 - [ ] Realtime sync antar anggota keluarga (Supabase Realtime)
 
