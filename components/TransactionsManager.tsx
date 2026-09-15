@@ -75,15 +75,28 @@ export function TransactionsManager({
 }) {
   const [transactions, setTransactions] = useState(initialTransactions);
   const [tab, setTab] = useState<Tab>("Semua");
+  const [categoryFilter, setCategoryFilter] = useState<string>("");
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<TransactionWithDetails | null>(null);
+
+  const usedCategories = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const t of transactions) {
+      if (filterAccountId && t.accountId !== filterAccountId) continue;
+      map.set(t.categoryId, t.categoryName);
+    }
+    return Array.from(map, ([id, name]) => ({ id, name })).sort((a, b) =>
+      a.name.localeCompare(b.name)
+    );
+  }, [transactions, filterAccountId]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return transactions.filter((t) => {
       if (filterAccountId && t.accountId !== filterAccountId) return false;
       if (tab !== "Semua" && t.type !== tab) return false;
+      if (categoryFilter && t.categoryId !== categoryFilter) return false;
       if (!q) return true;
       return (
         (t.description ?? "").toLowerCase().includes(q) ||
@@ -91,7 +104,7 @@ export function TransactionsManager({
         t.accountName.toLowerCase().includes(q)
       );
     });
-  }, [transactions, tab, search, filterAccountId]);
+  }, [transactions, tab, categoryFilter, search, filterAccountId]);
 
   const grouped = useMemo(() => {
     const groups = new Map<string, TransactionWithDetails[]>();
@@ -197,6 +210,42 @@ export function TransactionsManager({
           </button>
         ))}
       </div>
+
+      {usedCategories.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto -mx-4 px-4 pb-1 no-scrollbar">
+          <button
+            onClick={() => setCategoryFilter("")}
+            className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs border shrink-0 ${
+              categoryFilter === ""
+                ? "border-accent bg-accent/10 text-text-primary"
+                : "border-border-subtle text-text-secondary"
+            }`}
+          >
+            Semua Kategori
+          </button>
+          {usedCategories.map((c) => {
+            const style = getCategoryStyle(c.name);
+            const active = categoryFilter === c.id;
+            return (
+              <button
+                key={c.id}
+                onClick={() => setCategoryFilter(c.id)}
+                className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs border shrink-0 ${
+                  active
+                    ? "border-accent bg-accent/10 text-text-primary"
+                    : "border-border-subtle text-text-secondary"
+                }`}
+              >
+                <span
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{ backgroundColor: style.bright }}
+                />
+                {c.name}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {grouped.length === 0 && (
         <p className="text-sm text-text-muted text-center mt-6">

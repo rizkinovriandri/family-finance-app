@@ -51,4 +51,12 @@ body {
   .input:focus-within {
     border-color: var(--color-accent);
   }
+
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
 }
