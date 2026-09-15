@@ -19,6 +19,7 @@ import {
 } from "@/lib/constants/enums";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { UserIcon } from "@/components/icons";
+import { AccountTypeIcon } from "@/components/AccountTypeIcon";
 
 type Member = { id: string; display_name: string };
 
@@ -152,56 +153,63 @@ export function AccountsManager({
         </p>
       )}
 
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2">
         {accounts.map((account) => (
           <div
             key={account.id}
-            className="rounded-2xl bg-bg-surface border border-border-subtle p-4"
+            className="rounded-xl bg-bg-surface border border-border-subtle p-3 flex items-center gap-3"
           >
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-text-primary font-medium">{account.name}</p>
-                <p className="text-xs text-text-secondary mt-0.5">
+            <AccountTypeIcon accountType={account.account_type} />
+
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-medium text-text-primary truncate">
+                  {account.name}
+                </p>
+                <p className="text-sm font-semibold text-text-primary shrink-0">
+                  {formatRupiah(account.current_balance)}
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between gap-2 mt-0.5">
+                <p className="text-xs text-text-secondary truncate">
                   {account.account_type}
                   {account.institution ? ` · ${account.institution}` : ""}
                 </p>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {account.owner_member_id &&
+                    memberNameById.get(account.owner_member_id) && (
+                      <span className="inline-flex items-center gap-0.5 text-xs text-text-secondary">
+                        <UserIcon className="w-3 h-3" />
+                        {memberNameById.get(account.owner_member_id)}
+                      </span>
+                    )}
+                  <span
+                    className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                      account.status === "Aktif"
+                        ? "bg-success/15 text-success"
+                        : "bg-text-muted/15 text-text-muted"
+                    }`}
+                  >
+                    {account.status}
+                  </span>
+                </div>
               </div>
-              <span
-                className={`text-xs px-2 py-1 rounded-full ${
-                  account.status === "Aktif"
-                    ? "bg-success/15 text-success"
-                    : "bg-text-muted/15 text-text-muted"
-                }`}
-              >
-                {account.status}
-              </span>
-            </div>
 
-            <div className="flex items-end justify-between mt-3">
-              <p className="text-xl font-bold text-text-primary">
-                {formatRupiah(account.current_balance)}
-              </p>
-              {account.owner_member_id && memberNameById.get(account.owner_member_id) && (
-                <span className="inline-flex items-center gap-1 text-xs text-text-secondary bg-bg-page rounded-full px-2.5 py-1">
-                  <UserIcon className="w-3.5 h-3.5" />
-                  {memberNameById.get(account.owner_member_id)}
-                </span>
-              )}
-            </div>
-
-            <div className="flex gap-3 mt-3">
-              <button
-                onClick={() => openEditForm(account)}
-                className="text-sm text-accent"
-              >
-                Ubah
-              </button>
-              <button
-                onClick={() => handleDelete(account.id)}
-                className="text-sm text-danger"
-              >
-                Hapus
-              </button>
+              <div className="flex gap-3 mt-1">
+                <button
+                  onClick={() => openEditForm(account)}
+                  className="text-xs text-accent"
+                >
+                  Ubah
+                </button>
+                <button
+                  onClick={() => handleDelete(account.id)}
+                  className="text-xs text-danger"
+                >
+                  Hapus
+                </button>
+              </div>
             </div>
           </div>
         ))}
