@@ -30,19 +30,22 @@ export async function createFamilyWithOwner(
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Belum login");
 
-  const { data: family, error: familyError } = await supabase
+  // ID di-generate di client (bukan pakai .select() setelah insert) karena
+  // RLS select "families" mensyaratkan user sudah jadi family_members —
+  // padahal baris family_members-nya baru dibuat di langkah berikutnya.
+  const familyId = crypto.randomUUID();
+
+  const { error: familyError } = await supabase
     .from("families")
-    .insert({ name: familyName })
-    .select()
-    .single();
+    .insert({ id: familyId, name: familyName });
   if (familyError) throw familyError;
 
   const { error: memberError } = await supabase.from("family_members").insert({
-    family_id: family.id,
+    family_id: familyId,
     user_id: user.id,
     display_name: displayName,
   });
   if (memberError) throw memberError;
 
-  return family;
+  return { id: familyId, name: familyName };
 }
