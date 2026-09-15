@@ -1,0 +1,239 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+import {
+  deleteTransaction,
+  listTransactions,
+  type TransactionWithDetails,
+} from "@/lib/supabase/queries/transactions";
+import { getCategoryStyle } from "@/lib/constants/enums";
+import { TransactionForm } from "@/components/TransactionForm";
+import type { Category } from "@/lib/supabase/queries/categories";
+
+type Account = { id: string; name: string };
+type Member = { id: string; display_name: string };
+type Tab = "Semua" | "Pemasukan" | "Pengeluaran";
+
+function formatRupiah(amount: number) {
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+function dateGroupLabel(dateStr: string) {
+  const date = new Date(dateStr + "T00:00:00");
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  if (date.getTime() === today.getTime()) return "Hari ini";
+  if (date.getTime() === yesterday.getTime()) return "Kemarin";
+  return new Intl.DateTimeFormat("id-ID", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(date);
+}
+
+export function TransactionsManager({
+  familyId,
+  accounts,
+  members,
+  categories,
+  defaultMemberId,
+  initialTransactions,
+}: {
+  familyId: string;
+  accounts: Account[];
+  members: Member[];
+  categories: Category[];
+  defaultMemberId: string;
+  initialTransactions: TransactionWithDetails[];
+}) {
+  const [transactions, setTransactions] = useState(initialTransactions);
+  const [tab, setTab] = useState<Tab>("Semua");
+  const [search, setSearch] = useState("");
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<TransactionWithDetails | null>(null);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return transactions.filter((t) => {
+      if (tab !== "Semua" && t.type !== tab) return false;
+      if (!q) return true;
+      return (
+        (t.description ?? "").toLowerCase().includes(q) ||
+        t.categoryName.toLowerCase().includes(q) ||
+        t.accountName.toLowerCase().includes(q)
+      );
+    });
+  }, [transactions, tab, search]);
+
+  const grouped = useMemo(() => {
+    const groups = new Map<string, TransactionWithDetails[]>();
+    for (const t of filtered) {
+      const label = dateGroupLabel(t.date);
+      if (!groups.has(label)) groups.set(label, []);
+      groups.get(label)!.push(t);
+    }
+    return Array.from(groups.entries());
+  }, [filtered]);
+
+  async function refresh() {
+    const supabase = createClient();
+    setTransactions(await listTransactions(supabase, familyId));
+    setShowForm(false);
+    setEditing(null);
+  }
+
+  async function handleDelete(t: TransactionWithDetails) {
+    const confirmMsg = t.transferPairId
+      ? "Hapus transfer ini? Kedua sisi transaksi (keluar & masuk) akan terhapus."
+      : "Hapus transaksi ini?";
+    if (!confirm(confirmMsg)) return;
+
+    const supabase = createClient();
+    await deleteTransaction(supabase, t.id, t.transferPairId);
+    setTransactions((prev) =>
+      prev.filter((x) => x.id !== t.id && x.id !== t.transferPairId)
+    );
+  }
+
+  if (accounts.length === 0) {
+    return (
+      <div className="flex flex-col gap-4">
+        <h1 className="text-2xl font-semibold text-text-primary">Transaksi</h1>
+        <p className="text-sm text-text-muted text-center mt-6">
+          Tambah akun dulu sebelum mencatat transaksi.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-4 pb-20">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold text-text-primary">Transaksi</h1>
+        <button
+          onClick={() => {
+            setEditing(null);
+            setShowForm(true);
+          }}
+          className="rounded-xl bg-accent px-4 py-2 text-sm font-medium text-white"
+        >
+          + Tambah
+        </button>
+      </div>
+
+      {showForm && (
+        <TransactionForm
+          familyId={familyId}
+          accounts={accounts}
+          members={members}
+          categories={categories}
+          defaultMemberId={defaultMemberId}
+          editing={editing}
+          onSaved={refresh}
+          onCancel={() => {
+            setShowForm(false);
+            setEditing(null);
+          }}
+        />
+      )}
+
+      <input
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Cari transaksi..."
+        className="input"
+      />
+
+      <div className="flex rounded-xl bg-bg-surface border border-border-subtle p-1">
+        {(["Semua", "Pemasukan", "Pengeluaran"] as Tab[]).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`flex-1 rounded-lg py-2 text-xs font-medium ${
+              tab === t ? "bg-accent text-white" : "text-text-secondary"
+            }`}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+
+      {grouped.length === 0 && (
+        <p className="text-sm text-text-muted text-center mt-6">
+          Belum ada transaksi.
+        </p>
+      )}
+
+      {grouped.map(([label, items]) => (
+        <div key={label} className="flex flex-col gap-2">
+          <p className="text-xs text-text-muted font-medium">{label}</p>
+          <div className="flex flex-col gap-2">
+            {items.map((t) => {
+              const style = getCategoryStyle(t.categoryName);
+              const isIncome = t.type === "Pemasukan";
+              return (
+                <div
+                  key={t.id}
+                  className="rounded-xl bg-bg-surface border border-border-subtle p-3 flex items-center gap-3"
+                >
+                  <span
+                    className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 font-semibold"
+                    style={{ backgroundColor: style.mutedBg, color: style.bright }}
+                  >
+                    {t.categoryName.charAt(0)}
+                  </span>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-medium text-text-primary truncate">
+                        {t.description || t.categoryName}
+                      </p>
+                      <p
+                        className={`text-sm font-semibold shrink-0 ${
+                          isIncome ? "text-success" : "text-danger"
+                        }`}
+                      >
+                        {isIncome ? "+" : "-"} {formatRupiah(t.amount)}
+                      </p>
+                    </div>
+                    <p className="text-xs text-text-secondary truncate mt-0.5">
+                      {t.categoryName} · {t.accountName} · {t.memberName}
+                    </p>
+
+                    <div className="flex gap-3 mt-1">
+                      {!t.transferPairId && (
+                        <button
+                          onClick={() => {
+                            setEditing(t);
+                            setShowForm(true);
+                          }}
+                          className="text-xs text-accent"
+                        >
+                          Ubah
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDelete(t)}
+                        className="text-xs text-danger"
+                      >
+                        Hapus
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
