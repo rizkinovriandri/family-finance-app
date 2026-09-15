@@ -31,6 +31,7 @@ export function TransactionForm({
   members,
   categories,
   defaultMemberId,
+  defaultAccountId,
   editing,
   onSaved,
   onCancel,
@@ -40,6 +41,7 @@ export function TransactionForm({
   members: Member[];
   categories: Category[];
   defaultMemberId: string;
+  defaultAccountId?: string;
   editing?: TransactionWithDetails | null;
   onSaved: () => void;
   onCancel: () => void;
@@ -49,9 +51,15 @@ export function TransactionForm({
   );
   const [amount, setAmount] = useState(editing?.amount ?? 0);
   const [categoryId, setCategoryId] = useState(editing?.categoryId ?? "");
-  const [accountId, setAccountId] = useState(editing?.accountId ?? accounts[0]?.id ?? "");
-  const [fromAccountId, setFromAccountId] = useState(accounts[0]?.id ?? "");
-  const [toAccountId, setToAccountId] = useState(accounts[1]?.id ?? accounts[0]?.id ?? "");
+  const [accountId, setAccountId] = useState(
+    editing?.accountId ?? defaultAccountId ?? accounts[0]?.id ?? ""
+  );
+  const [fromAccountId, setFromAccountId] = useState(
+    defaultAccountId ?? accounts[0]?.id ?? ""
+  );
+  const [toAccountId, setToAccountId] = useState(
+    accounts.find((a) => a.id !== defaultAccountId)?.id ?? accounts[0]?.id ?? ""
+  );
   const [memberId, setMemberId] = useState(defaultMemberId);
   const [paymentMethod, setPaymentMethod] = useState<(typeof PAYMENT_METHODS)[number]>(
     "Tunai"

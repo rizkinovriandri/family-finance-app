@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import {
   createAccount,
@@ -197,6 +198,12 @@ export function AccountsManager({
               </div>
 
               <div className="flex gap-3 mt-1">
+                <Link
+                  href={`/accounts/${account.id}/history`}
+                  className="text-xs text-accent"
+                >
+                  Riwayat
+                </Link>
                 <button
                   onClick={() => openEditForm(account)}
                   className="text-xs text-accent"

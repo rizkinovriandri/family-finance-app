@@ -10,6 +10,8 @@ import {
 import { getCategoryStyle } from "@/lib/constants/enums";
 import { TransactionForm } from "@/components/TransactionForm";
 import type { Category } from "@/lib/supabase/queries/categories";
+import Link from "next/link";
+import { ChevronLeftIcon } from "@/components/icons";
 
 type Account = { id: string; name: string };
 type Member = { id: string; display_name: string };
@@ -46,6 +48,10 @@ export function TransactionsManager({
   categories,
   defaultMemberId,
   initialTransactions,
+  filterAccountId,
+  title = "Transaksi",
+  backHref,
+  defaultAccountId,
 }: {
   familyId: string;
   accounts: Account[];
@@ -53,6 +59,10 @@ export function TransactionsManager({
   categories: Category[];
   defaultMemberId: string;
   initialTransactions: TransactionWithDetails[];
+  filterAccountId?: string;
+  title?: string;
+  backHref?: string;
+  defaultAccountId?: string;
 }) {
   const [transactions, setTransactions] = useState(initialTransactions);
   const [tab, setTab] = useState<Tab>("Semua");
@@ -63,6 +73,7 @@ export function TransactionsManager({
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return transactions.filter((t) => {
+      if (filterAccountId && t.accountId !== filterAccountId) return false;
       if (tab !== "Semua" && t.type !== tab) return false;
       if (!q) return true;
       return (
@@ -71,7 +82,7 @@ export function TransactionsManager({
         t.accountName.toLowerCase().includes(q)
       );
     });
-  }, [transactions, tab, search]);
+  }, [transactions, tab, search, filterAccountId]);
 
   const grouped = useMemo(() => {
     const groups = new Map<string, TransactionWithDetails[]>();
@@ -106,7 +117,7 @@ export function TransactionsManager({
   if (accounts.length === 0) {
     return (
       <div className="flex flex-col gap-4">
-        <h1 className="text-2xl font-semibold text-text-primary">Transaksi</h1>
+        <h1 className="text-2xl font-semibold text-text-primary">{title}</h1>
         <p className="text-sm text-text-muted text-center mt-6">
           Tambah akun dulu sebelum mencatat transaksi.
         </p>
@@ -116,14 +127,25 @@ export function TransactionsManager({
 
   return (
     <div className="flex flex-col gap-4 pb-20">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-text-primary">Transaksi</h1>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          {backHref && (
+            <Link
+              href={backHref}
+              className="w-8 h-8 rounded-full bg-bg-surface border border-border-subtle flex items-center justify-center text-text-secondary shrink-0"
+              aria-label="Kembali"
+            >
+              <ChevronLeftIcon className="w-4 h-4" />
+            </Link>
+          )}
+          <h1 className="text-2xl font-semibold text-text-primary truncate">{title}</h1>
+        </div>
         <button
           onClick={() => {
             setEditing(null);
             setShowForm(true);
           }}
-          className="rounded-xl bg-accent px-4 py-2 text-sm font-medium text-white"
+          className="rounded-xl bg-accent px-4 py-2 text-sm font-medium text-white shrink-0"
         >
           + Tambah
         </button>
@@ -136,6 +158,7 @@ export function TransactionsManager({
           members={members}
           categories={categories}
           defaultMemberId={defaultMemberId}
+          defaultAccountId={defaultAccountId}
           editing={editing}
           onSaved={refresh}
           onCancel={() => {
@@ -205,7 +228,9 @@ export function TransactionsManager({
                       </p>
                     </div>
                     <p className="text-xs text-text-secondary truncate mt-0.5">
-                      {t.categoryName} · {t.accountName} · {t.memberName}
+                      {filterAccountId
+                        ? `${t.categoryName} · ${t.memberName}`
+                        : `${t.categoryName} · ${t.accountName} · ${t.memberName}`}
                     </p>
 
                     <div className="flex gap-3 mt-1">
