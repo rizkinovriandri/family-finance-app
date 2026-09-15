@@ -152,7 +152,7 @@ Aturan ini **wajib diikuti** saat implementasi logic transaksi, karena jadi acua
 ### MVP (versi pertama — wajib ada)
 - [x] Auth (register/login, multi-user per keluarga) — termasuk kode undangan keluarga & reset password
 - [x] Manajemen akun (CRUD `accounts`) — prasyarat untuk transaksi
-- [ ] CRUD transaksi (income/expense/transfer, sesuai aturan Bagian 5)
+- [x] CRUD transaksi (income/expense/transfer, sesuai aturan Bagian 5) — termasuk riwayat transaksi per akun
 - [ ] Budget bulanan per kategori (target + realisasi otomatis)
 - [ ] Dashboard: total saldo semua akun, total pemasukan/pengeluaran, saldo bersih, realisasi anggaran vs target, kategori yang melebihi budget, grafik tren bulanan
 - [ ] PWA (installable, "Add to Home Screen")
