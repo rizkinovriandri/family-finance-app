@@ -109,3 +109,70 @@ export async function deleteBudget(supabase: Client, budgetId: string) {
   const { error } = await supabase.from("budgets").delete().eq("id", budgetId);
   if (error) throw error;
 }
+
+export interface DuplicateBudgetsResult {
+  inserted: number;
+  skipped: number;
+}
+
+// Duplikasi semua anggaran bulan berjalan ke bulan berikutnya (target_amount
+// & notes disalin, realisasi otomatis 0 karena belum ada transaksi di bulan
+// itu). Kategori yang sudah punya anggaran di bulan berikutnya dilewati
+// (unik per family_id+month+category_id).
+export async function duplicateBudgetsToNextMonth(
+  supabase: Client,
+  familyId: string,
+  currentMonthDate: Date
+): Promise<DuplicateBudgetsResult> {
+  const currentMonth = toMonthStart(currentMonthDate);
+  const nextMonthDate = new Date(
+    currentMonthDate.getFullYear(),
+    currentMonthDate.getMonth() + 1,
+    1
+  );
+  const nextMonth = toMonthStart(nextMonthDate);
+
+  const [
+    { data: currentBudgets, error: currentError },
+    { data: nextBudgets, error: nextError },
+  ] = await Promise.all([
+    supabase
+      .from("budgets")
+      .select("category_id, target_amount, notes")
+      .eq("family_id", familyId)
+      .eq("month", currentMonth),
+    supabase
+      .from("budgets")
+      .select("category_id")
+      .eq("family_id", familyId)
+      .eq("month", nextMonth),
+  ]);
+
+  if (currentError) throw currentError;
+  if (nextError) throw nextError;
+
+  const existingNextCategoryIds = new Set(nextBudgets.map((b) => b.category_id));
+  const toInsert = currentBudgets.filter(
+    (b) => !existingNextCategoryIds.has(b.category_id)
+  );
+
+  if (toInsert.length === 0) {
+    return { inserted: 0, skipped: currentBudgets.length };
+  }
+
+  const { error: insertError } = await supabase.from("budgets").insert(
+    toInsert.map((b) => ({
+      family_id: familyId,
+      month: nextMonth,
+      category_id: b.category_id,
+      target_amount: b.target_amount,
+      notes: b.notes,
+    }))
+  );
+  if (insertError) throw insertError;
+
+  return {
+    inserted: toInsert.length,
+    skipped: currentBudgets.length - toInsert.length,
+  };
+}

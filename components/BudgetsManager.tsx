@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import {
   createBudget,
   deleteBudget,
+  duplicateBudgetsToNextMonth,
   listBudgetsForMonth,
   updateBudget,
   type BudgetWithRealization,
@@ -12,7 +13,7 @@ import {
 import { budgetSchema, type BudgetFormValues } from "@/lib/validation/budget";
 import { getCategoryStyle } from "@/lib/constants/enums";
 import { CurrencyInput } from "@/components/CurrencyInput";
-import { ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
+import { ChevronLeftIcon, ChevronRightIcon, CopyIcon } from "@/components/icons";
 import type { Category } from "@/lib/supabase/queries/categories";
 
 function formatRupiah(amount: number) {
@@ -50,6 +51,7 @@ export function BudgetsManager({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [duplicating, setDuplicating] = useState(false);
 
   const monthLabel = new Intl.DateTimeFormat("id-ID", {
     month: "long",
@@ -73,6 +75,46 @@ export function BudgetsManager({
     setShowForm(false);
     setEditing(null);
     loadMonth(next);
+  }
+
+  async function handleDuplicate() {
+    if (budgets.length === 0 || duplicating) return;
+
+    const nextMonthDate = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 1);
+    const nextMonthLabel = new Intl.DateTimeFormat("id-ID", {
+      month: "long",
+      year: "numeric",
+    }).format(nextMonthDate);
+
+    if (
+      !confirm(
+        `Duplikasi ${budgets.length} anggaran ke ${nextMonthLabel}? Kategori yang sudah punya anggaran di bulan itu akan dilewati.`
+      )
+    ) {
+      return;
+    }
+
+    setDuplicating(true);
+    try {
+      const supabase = createClient();
+      const result = await duplicateBudgetsToNextMonth(supabase, familyId, monthDate);
+      setMonthDate(nextMonthDate);
+      setShowForm(false);
+      setEditing(null);
+      await loadMonth(nextMonthDate);
+
+      if (result.inserted === 0) {
+        alert(`Semua kategori sudah punya anggaran di ${nextMonthLabel}.`);
+      } else if (result.skipped > 0) {
+        alert(
+          `${result.inserted} anggaran diduplikasi ke ${nextMonthLabel}, ${result.skipped} dilewati (sudah ada).`
+        );
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Gagal menduplikasi anggaran.");
+    } finally {
+      setDuplicating(false);
+    }
   }
 
   function openCreateForm() {
@@ -155,6 +197,17 @@ export function BudgetsManager({
           <ChevronRightIcon className="w-4 h-4" />
         </button>
       </div>
+
+      {budgets.length > 0 && (
+        <button
+          onClick={handleDuplicate}
+          disabled={duplicating}
+          className="flex items-center justify-center gap-2 text-sm text-accent disabled:opacity-60"
+        >
+          <CopyIcon className="w-4 h-4" />
+          {duplicating ? "Menduplikasi..." : "Duplikasi ke bulan berikutnya"}
+        </button>
+      )}
 
       {budgets.length === 0 && !showForm && (
         <p className="text-sm text-text-muted text-center mt-6">

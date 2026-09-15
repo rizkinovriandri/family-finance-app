@@ -219,6 +219,21 @@ export function ChevronRightIcon({ className }: { className?: string }) {
   );
 }
 
+export function CopyIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+      <rect x="8.5" y="8.5" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.6" />
+      <path
+        d="M15.5 8.5V6a1.5 1.5 0 0 0-1.5-1.5H5A1.5 1.5 0 0 0 3.5 6v8.5A1.5 1.5 0 0 0 5 16h2.5"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export function ChevronLeftIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" className={className}>
