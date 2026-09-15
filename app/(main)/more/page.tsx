@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getMyFamilyMembership } from "@/lib/supabase/queries/families";
 import { LogoutButton } from "@/components/LogoutButton";
@@ -22,13 +21,6 @@ export default async function MorePage() {
         <p className="text-sm text-text-secondary mt-3">Email</p>
         <p className="text-text-primary font-medium mt-0.5">{user?.email}</p>
       </div>
-
-      <Link
-        href="/accounts"
-        className="rounded-2xl bg-bg-surface border border-border-subtle p-4 text-text-primary"
-      >
-        Kelola akun
-      </Link>
 
       <LogoutButton />
     </div>
