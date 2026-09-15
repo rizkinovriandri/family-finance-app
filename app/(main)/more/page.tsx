@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
-import { getMyFamilyMembership } from "@/lib/supabase/queries/families";
+import { getMyFamilyMembership, getFamilyInviteCode } from "@/lib/supabase/queries/families";
 import { LogoutButton } from "@/components/LogoutButton";
+import { InviteCodeCard } from "@/components/InviteCodeCard";
 
 export default async function MorePage() {
   const supabase = await createClient();
@@ -8,6 +9,9 @@ export default async function MorePage() {
     data: { user },
   } = await supabase.auth.getUser();
   const membership = await getMyFamilyMembership(supabase);
+  const inviteCode = membership
+    ? await getFamilyInviteCode(supabase, membership.family_id)
+    : null;
 
   return (
     <div className="px-4 pt-8 flex flex-col gap-4">
@@ -21,6 +25,8 @@ export default async function MorePage() {
         <p className="text-sm text-text-secondary mt-3">Email</p>
         <p className="text-text-primary font-medium mt-0.5">{user?.email}</p>
       </div>
+
+      {inviteCode && <InviteCodeCard inviteCode={inviteCode} />}
 
       <LogoutButton />
     </div>

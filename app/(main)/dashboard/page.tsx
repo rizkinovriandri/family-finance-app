@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getMyFamilyMembership } from "@/lib/supabase/queries/families";
 import { listAccounts } from "@/lib/supabase/queries/accounts";
 import { getMonthlySummary } from "@/lib/supabase/queries/transactions";
-import { CreateFamilyForm } from "@/components/CreateFamilyForm";
+import { FamilyOnboarding } from "@/components/FamilyOnboarding";
 import { DashboardView } from "@/components/DashboardView";
 
 export default async function DashboardPage() {
@@ -12,7 +12,7 @@ export default async function DashboardPage() {
   if (!membership) {
     return (
       <div className="px-4 pt-8">
-        <CreateFamilyForm />
+        <FamilyOnboarding />
       </div>
     );
   }

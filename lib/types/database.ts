@@ -40,9 +40,19 @@ export interface Database {
   public: {
     Tables: {
       families: {
-        Row: { id: string; name: string; created_at: string };
-        Insert: { id?: string; name: string; created_at?: string };
-        Update: { id?: string; name?: string; created_at?: string };
+        Row: { id: string; name: string; invite_code: string; created_at: string };
+        Insert: {
+          id?: string;
+          name: string;
+          invite_code: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          invite_code?: string;
+          created_at?: string;
+        };
         Relationships: [];
       };
       family_members: {
@@ -202,6 +212,11 @@ export interface Database {
         Relationships: [];
       };
     };
-    Functions: Record<string, never>;
+    Functions: {
+      join_family_by_invite_code: {
+        Args: { p_code: string; p_display_name: string };
+        Returns: { family_id: string; family_name: string }[];
+      };
+    };
   };
 }

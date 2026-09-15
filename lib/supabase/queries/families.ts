@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/types/database";
+import { generateInviteCode } from "@/lib/utils/inviteCode";
 
 type Client = SupabaseClient<Database>;
 
@@ -55,10 +56,11 @@ export async function createFamilyWithOwner(
   // RLS select "families" mensyaratkan user sudah jadi family_members —
   // padahal baris family_members-nya baru dibuat di langkah berikutnya.
   const familyId = crypto.randomUUID();
+  const inviteCode = generateInviteCode();
 
   const { error: familyError } = await supabase
     .from("families")
-    .insert({ id: familyId, name: familyName });
+    .insert({ id: familyId, name: familyName, invite_code: inviteCode });
   if (familyError) throw familyError;
 
   const { error: memberError } = await supabase.from("family_members").insert({
@@ -68,5 +70,28 @@ export async function createFamilyWithOwner(
   });
   if (memberError) throw memberError;
 
-  return { id: familyId, name: familyName };
+  return { id: familyId, name: familyName, invite_code: inviteCode };
+}
+
+export async function joinFamilyByInviteCode(
+  supabase: Client,
+  inviteCode: string,
+  displayName: string
+) {
+  const { data, error } = await supabase.rpc("join_family_by_invite_code", {
+    p_code: inviteCode.trim().toUpperCase(),
+    p_display_name: displayName,
+  });
+  if (error) throw error;
+  return data[0];
+}
+
+export async function getFamilyInviteCode(supabase: Client, familyId: string) {
+  const { data, error } = await supabase
+    .from("families")
+    .select("invite_code")
+    .eq("id", familyId)
+    .single();
+  if (error) throw error;
+  return data.invite_code;
 }
