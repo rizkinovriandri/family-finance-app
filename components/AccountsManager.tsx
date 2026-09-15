@@ -6,9 +6,11 @@ import { createClient } from "@/lib/supabase/client";
 import {
   createAccount,
   deleteAccount,
+  listAccounts,
   updateAccount,
   type AccountWithBalance,
 } from "@/lib/supabase/queries/accounts";
+import { useRealtimeTable } from "@/lib/hooks/useRealtimeTable";
 import {
   accountSchema,
   type AccountFormValues,
@@ -64,6 +66,16 @@ export function AccountsManager({
 
   const memberNameById = new Map(members.map((m) => [m.id, m.display_name]));
 
+  async function syncAccounts() {
+    const supabase = createClient();
+    setAccounts(await listAccounts(supabase, familyId));
+  }
+
+  useRealtimeTable("accounts", familyId, syncAccounts);
+  // Saldo dihitung dari transaksi (view account_balances), jadi ikut
+  // resync begitu ada transaksi baru/berubah/terhapus di family ini.
+  useRealtimeTable("transactions", familyId, syncAccounts);
+
   function openCreateForm() {
     setEditingId(null);
     setForm(EMPTY_FORM);
@@ -115,8 +127,7 @@ export function AccountsManager({
         await createAccount(supabase, familyId, result.data);
       }
 
-      const { listAccounts } = await import("@/lib/supabase/queries/accounts");
-      setAccounts(await listAccounts(supabase, familyId));
+      await syncAccounts();
       setShowForm(false);
     } catch (err) {
       setSubmitError(

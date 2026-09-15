@@ -5,6 +5,7 @@ import { getMonthlySummary, getMonthlyTrend } from "@/lib/supabase/queries/trans
 import { listBudgetsForMonth } from "@/lib/supabase/queries/budgets";
 import { FamilyOnboarding } from "@/components/FamilyOnboarding";
 import { DashboardView } from "@/components/DashboardView";
+import { RealtimeDashboardSync } from "@/components/RealtimeDashboardSync";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -33,18 +34,21 @@ export default async function DashboardPage() {
     .map((b) => b.categoryName);
 
   return (
-    <DashboardView
-      displayName={membership.display_name}
-      familyName={membership.family_name}
-      totalBalance={totalBalance}
-      accountsCount={accounts.length}
-      totalIncome={summary.totalIncome}
-      totalExpense={summary.totalExpense}
-      categories={summary.categories}
-      budgetTarget={budgetTarget}
-      budgetRealisasi={budgetRealisasi}
-      overBudgetCategories={overBudgetCategories}
-      trend={trend}
-    />
+    <>
+      <RealtimeDashboardSync familyId={membership.family_id} />
+      <DashboardView
+        displayName={membership.display_name}
+        familyName={membership.family_name}
+        totalBalance={totalBalance}
+        accountsCount={accounts.length}
+        totalIncome={summary.totalIncome}
+        totalExpense={summary.totalExpense}
+        categories={summary.categories}
+        budgetTarget={budgetTarget}
+        budgetRealisasi={budgetRealisasi}
+        overBudgetCategories={overBudgetCategories}
+        trend={trend}
+      />
+    </>
   );
 }

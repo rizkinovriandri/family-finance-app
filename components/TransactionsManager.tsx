@@ -12,6 +12,7 @@ import { TransactionForm } from "@/components/TransactionForm";
 import type { Category } from "@/lib/supabase/queries/categories";
 import Link from "next/link";
 import { ChevronLeftIcon } from "@/components/icons";
+import { useRealtimeTable } from "@/lib/hooks/useRealtimeTable";
 
 type Account = { id: string; name: string };
 type Member = { id: string; display_name: string };
@@ -116,9 +117,15 @@ export function TransactionsManager({
     return Array.from(groups.entries());
   }, [filtered]);
 
-  async function refresh() {
+  async function syncTransactions() {
     const supabase = createClient();
     setTransactions(await listTransactions(supabase, familyId));
+  }
+
+  useRealtimeTable("transactions", familyId, syncTransactions);
+
+  async function refresh() {
+    await syncTransactions();
     setShowForm(false);
     setEditing(null);
   }

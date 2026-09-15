@@ -15,6 +15,7 @@ import { getCategoryStyle } from "@/lib/constants/enums";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { ChevronLeftIcon, ChevronRightIcon, CopyIcon } from "@/components/icons";
 import type { Category } from "@/lib/supabase/queries/categories";
+import { useRealtimeTable } from "@/lib/hooks/useRealtimeTable";
 
 function formatRupiah(amount: number) {
   return new Intl.NumberFormat("id-ID", {
@@ -68,6 +69,11 @@ export function BudgetsManager({
     const supabase = createClient();
     setBudgets(await listBudgetsForMonth(supabase, familyId, date));
   }
+
+  useRealtimeTable("budgets", familyId, () => loadMonth(monthDate));
+  // Realisasi dihitung dari transaksi (view budget_realizations), jadi ikut
+  // resync begitu ada transaksi baru/berubah/terhapus di family ini.
+  useRealtimeTable("transactions", familyId, () => loadMonth(monthDate));
 
   function shiftMonth(delta: number) {
     const next = new Date(monthDate.getFullYear(), monthDate.getMonth() + delta, 1);
