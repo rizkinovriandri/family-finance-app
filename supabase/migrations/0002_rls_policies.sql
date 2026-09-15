@@ -43,9 +43,21 @@ create policy "Lihat anggota family sendiri"
   on family_members for select
   using (is_family_member(family_id));
 
-create policy "Gabung/tambah anggota ke family sendiri"
+create policy "Tambah anggota baru ke family sendiri"
   on family_members for insert
-  with check (is_family_member(family_id) or user_id = auth.uid());
+  with check (is_family_member(family_id));
+
+-- Bootstrap: user boleh jadi anggota pertama HANYA saat family itu baru
+-- dibuat (belum ada member sama sekali) — mencegah user asing "gabung"
+-- ke family manapun cuma dengan menebak family_id.
+create policy "Jadi anggota pertama saat family baru dibuat"
+  on family_members for insert
+  with check (
+    user_id = auth.uid()
+    and not exists (
+      select 1 from family_members fm where fm.family_id = family_members.family_id
+    )
+  );
 
 create policy "Update data anggota family sendiri"
   on family_members for update
