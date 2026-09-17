@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, TransactionType } from "@/lib/types/database";
 import { getCategoryStyle } from "@/lib/constants/enums";
-import { toLocalISODate } from "@/lib/utils/date";
+import { getCycleRange, getCycleStart, shiftCycle, toLocalISODate } from "@/lib/utils/date";
 import type {
   TransactionFormValues,
   TransferFormValues,
@@ -23,18 +23,13 @@ export interface MonthlySummary {
   categories: CategorySlice[];
 }
 
-function monthRange(monthStart: Date) {
-  const start = new Date(monthStart.getFullYear(), monthStart.getMonth(), 1);
-  const end = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 1);
-  return { start: toLocalISODate(start), end: toLocalISODate(end) };
-}
-
 export async function getMonthlySummary(
   supabase: Client,
   familyId: string,
-  monthStart: Date = new Date()
+  monthStartDay: number,
+  anchorDate: Date = new Date()
 ): Promise<MonthlySummary> {
-  const { start, end } = monthRange(monthStart);
+  const { start, end } = getCycleRange(getCycleStart(anchorDate, monthStartDay), monthStartDay);
 
   const [{ data: transactions, error: txError }, { data: categories, error: catError }] =
     await Promise.all([
@@ -98,11 +93,12 @@ export interface MonthlyTrendPoint {
 export async function getMonthlyTrend(
   supabase: Client,
   familyId: string,
+  monthStartDay: number,
   monthsCount = 6
 ): Promise<MonthlyTrendPoint[]> {
-  const now = new Date();
-  const rangeStart = new Date(now.getFullYear(), now.getMonth() - (monthsCount - 1), 1);
-  const rangeEndExclusive = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const currentCycleStart = getCycleStart(new Date(), monthStartDay);
+  const rangeStart = shiftCycle(currentCycleStart, -(monthsCount - 1));
+  const rangeEndExclusive = shiftCycle(currentCycleStart, 1);
 
   const { data, error } = await supabase
     .from("transactions")
@@ -113,31 +109,32 @@ export async function getMonthlyTrend(
 
   if (error) throw error;
 
-  const buckets = new Map<string, { income: number; expense: number }>();
-  for (let i = 0; i < monthsCount; i++) {
-    const d = new Date(rangeStart.getFullYear(), rangeStart.getMonth() + i, 1);
-    buckets.set(`${d.getFullYear()}-${d.getMonth()}`, { income: 0, expense: 0 });
-  }
+  const buckets = Array.from({ length: monthsCount }, (_, i) => ({
+    cycleStart: shiftCycle(rangeStart, i),
+    income: 0,
+    expense: 0,
+  }));
 
   for (const t of data) {
     // Transfer antar akun bukan pemasukan/pengeluaran asli — lihat catatan
     // di getMonthlySummary.
     if (t.transfer_pair_id) continue;
 
-    const d = new Date(t.date + "T00:00:00");
-    const bucket = buckets.get(`${d.getFullYear()}-${d.getMonth()}`);
+    const txCycleStart = getCycleStart(new Date(t.date + "T00:00:00"), monthStartDay);
+    const bucketIndex =
+      (txCycleStart.getFullYear() - rangeStart.getFullYear()) * 12 +
+      (txCycleStart.getMonth() - rangeStart.getMonth());
+    const bucket = buckets[bucketIndex];
     if (!bucket) continue;
     if (t.type === "Pemasukan") bucket.income += t.amount;
     else if (t.type === "Pengeluaran") bucket.expense += t.amount;
   }
 
-  return Array.from(buckets.entries()).map(([key, v]) => {
-    const [year, month] = key.split("-").map(Number);
-    const monthLabel = new Intl.DateTimeFormat("id-ID", { month: "short" }).format(
-      new Date(year, month, 1)
-    );
-    return { monthLabel, income: v.income, expense: v.expense };
-  });
+  return buckets.map((b) => ({
+    monthLabel: new Intl.DateTimeFormat("id-ID", { month: "short" }).format(b.cycleStart),
+    income: b.income,
+    expense: b.expense,
+  }));
 }
 
 export interface TransactionWithDetails {
@@ -149,6 +146,7 @@ export interface TransactionWithDetails {
   notes: string | null;
   categoryId: string;
   categoryName: string;
+  categoryIcon: string | null;
   accountId: string;
   accountName: string;
   memberName: string;
@@ -171,7 +169,7 @@ export async function listTransactions(
       .eq("family_id", familyId)
       .order("date", { ascending: false })
       .order("created_at", { ascending: false }),
-    supabase.from("categories").select("id, name"),
+    supabase.from("categories").select("id, name, icon"),
     supabase.from("accounts").select("id, name").eq("family_id", familyId),
     supabase.from("family_members").select("id, display_name").eq("family_id", familyId),
   ]);
@@ -181,7 +179,7 @@ export async function listTransactions(
   if (accError) throw accError;
   if (memError) throw memError;
 
-  const categoryNameById = new Map(categories.map((c) => [c.id, c.name]));
+  const categoryById = new Map(categories.map((c) => [c.id, c]));
   const accountNameById = new Map(accounts.map((a) => [a.id, a.name]));
   const memberNameById = new Map(members.map((m) => [m.id, m.display_name]));
 
@@ -193,7 +191,8 @@ export async function listTransactions(
     description: t.description,
     notes: t.notes,
     categoryId: t.category_id,
-    categoryName: categoryNameById.get(t.category_id) ?? "Lainnya",
+    categoryName: categoryById.get(t.category_id)?.name ?? "Lainnya",
+    categoryIcon: categoryById.get(t.category_id)?.icon ?? null,
     accountId: t.account_id,
     accountName: accountNameById.get(t.account_id) ?? "-",
     memberName: memberNameById.get(t.family_member_id) ?? "-",

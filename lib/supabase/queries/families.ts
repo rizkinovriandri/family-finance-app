@@ -22,13 +22,29 @@ export async function getMyFamilyMembership(supabase: Client) {
 
   const { data: family, error: familyError } = await supabase
     .from("families")
-    .select("name")
+    .select("name, month_start_day")
     .eq("id", membership.family_id)
     .single();
 
   if (familyError) throw familyError;
 
-  return { ...membership, family_name: family.name };
+  return {
+    ...membership,
+    family_name: family.name,
+    month_start_day: family.month_start_day,
+  };
+}
+
+export async function updateMonthStartDay(
+  supabase: Client,
+  familyId: string,
+  monthStartDay: number
+) {
+  const { error } = await supabase
+    .from("families")
+    .update({ month_start_day: monthStartDay })
+    .eq("id", familyId);
+  if (error) throw error;
 }
 
 export async function listFamilyMembers(supabase: Client, familyId: string) {

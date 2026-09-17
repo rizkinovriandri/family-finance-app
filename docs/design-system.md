@@ -104,10 +104,11 @@ Referensi 12 layar di mockup dan statusnya terhadap scope yang sudah disepakati 
 | 4 | Home/Dashboard | MVP |
 | 5–6 | Transaction List, Add Transaction | MVP |
 | 7 | Budget | MVP |
-| 8 | Laporan (termasuk tab Net Worth) | Sebagian MVP (grafik tren), tab **Net Worth** masuk Fase 2 (lihat `CLAUDE.md` Bagian 4 & 6) |
+| 8 | Laporan (termasuk tab Net Worth) | Selesai — halaman `/reports`: tab Pengeluaran/Pemasukan dengan total + perubahan vs bulan lalu, grafik mingguan (W1-W4), dan Kategori Terbesar. Tab **Net Worth** tampil sebagai placeholder "segera hadir" (masuk Fase 2, lihat `CLAUDE.md` Bagian 4 & 6) |
 | 9 | Goals / Tujuan Finansial | **Belum ada di scope manapun** — fitur baru yang muncul dari mockup ini, belum diputuskan. Perlu didiskusikan dulu sebelum masuk roadmap. |
 | 10 | Profile & Settings | MVP (minimal: info akun, logout); item lain (Backup & Sinkronisasi, dsb.) bisa menyusul |
-| 11–12 | Category Management, Category Detail/Analytics | Sebagian MVP (kategori dasar sudah ada dari `CLAUDE.md`), UI manajemen kategori custom bisa menyusul di iterasi berikutnya |
+| 11 | Category Management | Selesai — halaman `/categories` ("Kelola Kategori", diakses dari menu Lainnya), kategori custom per keluarga bisa dipakai di transaksi & budgeting |
+| 12 | Category Detail/Analytics | Belum ada — bisa menyusul di iterasi berikutnya |
 
 ## 7. Referensi Sumber
 

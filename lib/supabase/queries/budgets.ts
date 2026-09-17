@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/types/database";
 import type { BudgetFormValues } from "@/lib/validation/budget";
-import { toLocalISODate } from "@/lib/utils/date";
+import { getCycleStart, shiftCycle, toLocalISODate } from "@/lib/utils/date";
 
 type Client = SupabaseClient<Database>;
 
@@ -9,15 +9,12 @@ export interface BudgetWithRealization {
   id: string;
   categoryId: string;
   categoryName: string;
+  categoryIcon: string | null;
   targetAmount: number;
   realisasi: number;
   percentage: number;
   status: "Aman" | "Waspada" | "Melebihi";
   notes: string | null;
-}
-
-function toMonthStart(date: Date) {
-  return toLocalISODate(new Date(date.getFullYear(), date.getMonth(), 1));
 }
 
 function statusFor(percentage: number): BudgetWithRealization["status"] {
@@ -29,9 +26,10 @@ function statusFor(percentage: number): BudgetWithRealization["status"] {
 export async function listBudgetsForMonth(
   supabase: Client,
   familyId: string,
-  monthDate: Date
+  monthDate: Date,
+  monthStartDay: number
 ): Promise<BudgetWithRealization[]> {
-  const month = toMonthStart(monthDate);
+  const month = toLocalISODate(getCycleStart(monthDate, monthStartDay));
 
   const [
     { data: budgets, error: budgetError },
@@ -48,7 +46,7 @@ export async function listBudgetsForMonth(
       .select("budget_id, realisasi")
       .eq("family_id", familyId)
       .eq("month", month),
-    supabase.from("categories").select("id, name"),
+    supabase.from("categories").select("id, name, icon"),
   ]);
 
   if (budgetError) throw budgetError;
@@ -56,7 +54,7 @@ export async function listBudgetsForMonth(
   if (catError) throw catError;
 
   const realisasiByBudgetId = new Map(realizations.map((r) => [r.budget_id, r.realisasi]));
-  const categoryNameById = new Map(categories.map((c) => [c.id, c.name]));
+  const categoryById = new Map(categories.map((c) => [c.id, c]));
 
   return budgets
     .map((b) => {
@@ -66,7 +64,8 @@ export async function listBudgetsForMonth(
       return {
         id: b.id,
         categoryId: b.category_id,
-        categoryName: categoryNameById.get(b.category_id) ?? "Lainnya",
+        categoryName: categoryById.get(b.category_id)?.name ?? "Lainnya",
+        categoryIcon: categoryById.get(b.category_id)?.icon ?? null,
         targetAmount: b.target_amount,
         realisasi,
         percentage,
@@ -81,11 +80,12 @@ export async function createBudget(
   supabase: Client,
   familyId: string,
   monthDate: Date,
-  input: BudgetFormValues
+  input: BudgetFormValues,
+  monthStartDay: number
 ) {
   const { error } = await supabase.from("budgets").insert({
     family_id: familyId,
-    month: toMonthStart(monthDate),
+    month: toLocalISODate(getCycleStart(monthDate, monthStartDay)),
     category_id: input.category_id,
     target_amount: input.target_amount,
     notes: input.notes || null,
@@ -122,15 +122,13 @@ export interface DuplicateBudgetsResult {
 export async function duplicateBudgetsToNextMonth(
   supabase: Client,
   familyId: string,
-  currentMonthDate: Date
+  currentMonthDate: Date,
+  monthStartDay: number
 ): Promise<DuplicateBudgetsResult> {
-  const currentMonth = toMonthStart(currentMonthDate);
-  const nextMonthDate = new Date(
-    currentMonthDate.getFullYear(),
-    currentMonthDate.getMonth() + 1,
-    1
-  );
-  const nextMonth = toMonthStart(nextMonthDate);
+  const currentCycleStart = getCycleStart(currentMonthDate, monthStartDay);
+  const currentMonth = toLocalISODate(currentCycleStart);
+  const nextMonthDate = shiftCycle(currentCycleStart, 1);
+  const nextMonth = toLocalISODate(nextMonthDate);
 
   const [
     { data: currentBudgets, error: currentError },

@@ -36,21 +36,39 @@ export type PaymentMethod =
 
 export type CategoryType = "income" | "expense" | "transfer";
 
+export type InvestmentCategory = "reksadana" | "obligasi_sukuk" | "saham" | "emas";
+
+export type FundType = "Pasar Uang" | "Pendapatan Tetap" | "Campuran" | "Saham" | "Indeks";
+
+export type BondType = "Obligasi Pemerintah" | "Obligasi Korporasi" | "Sukuk Ritel";
+
+export type CouponFrequency = "Bulanan" | "Triwulanan" | "Semesteran" | "Tahunan";
+
+export type GoldType = "Fisik/Batangan" | "Digital/Tabungan Emas";
+
 export interface Database {
   public: {
     Tables: {
       families: {
-        Row: { id: string; name: string; invite_code: string; created_at: string };
+        Row: {
+          id: string;
+          name: string;
+          invite_code: string;
+          month_start_day: number;
+          created_at: string;
+        };
         Insert: {
           id?: string;
           name: string;
           invite_code: string;
+          month_start_day?: number;
           created_at?: string;
         };
         Update: {
           id?: string;
           name?: string;
           invite_code?: string;
+          month_start_day?: number;
           created_at?: string;
         };
         Relationships: [];
@@ -85,18 +103,24 @@ export interface Database {
           name: string;
           type: CategoryType;
           is_default: boolean;
+          family_id: string | null;
+          icon: string | null;
         };
         Insert: {
           id?: string;
           name: string;
           type: CategoryType;
           is_default?: boolean;
+          family_id?: string | null;
+          icon?: string | null;
         };
         Update: {
           id?: string;
           name?: string;
           type?: CategoryType;
           is_default?: boolean;
+          family_id?: string | null;
+          icon?: string | null;
         };
         Relationships: [];
       };
@@ -192,6 +216,58 @@ export interface Database {
           notes?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["budgets"]["Insert"]>;
+        Relationships: [];
+      };
+      investment_holdings: {
+        Row: {
+          id: string;
+          family_id: string;
+          account_id: string;
+          category: InvestmentCategory;
+          name: string;
+          platform: string | null;
+          purchase_date: string;
+          quantity: number;
+          purchase_price: number;
+          current_price: number;
+          notes: string | null;
+          fund_manager: string | null;
+          fund_type: FundType | null;
+          issuer: string | null;
+          bond_type: BondType | null;
+          coupon_rate: number | null;
+          coupon_frequency: CouponFrequency | null;
+          maturity_date: string | null;
+          ticker_code: string | null;
+          gold_type: GoldType | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          family_id: string;
+          account_id: string;
+          category: InvestmentCategory;
+          name: string;
+          platform?: string | null;
+          purchase_date: string;
+          quantity: number;
+          purchase_price: number;
+          current_price: number;
+          notes?: string | null;
+          fund_manager?: string | null;
+          fund_type?: FundType | null;
+          issuer?: string | null;
+          bond_type?: BondType | null;
+          coupon_rate?: number | null;
+          coupon_frequency?: CouponFrequency | null;
+          maturity_date?: string | null;
+          ticker_code?: string | null;
+          gold_type?: GoldType | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["investment_holdings"]["Insert"]>;
         Relationships: [];
       };
     };

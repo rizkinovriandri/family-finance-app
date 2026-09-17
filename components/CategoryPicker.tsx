@@ -1,4 +1,4 @@
-import { getCategoryStyle } from "@/lib/constants/enums";
+import { CategoryIcon } from "@/components/CategoryIcon";
 import type { Category } from "@/lib/supabase/queries/categories";
 
 export function CategoryPicker({
@@ -13,7 +13,6 @@ export function CategoryPicker({
   return (
     <div className="flex flex-wrap gap-2">
       {categories.map((c) => {
-        const style = getCategoryStyle(c.name);
         const active = value === c.id;
         return (
           <button
@@ -26,10 +25,7 @@ export function CategoryPicker({
                 : "border-border-subtle text-text-secondary"
             }`}
           >
-            <span
-              className="w-2.5 h-2.5 rounded-full shrink-0"
-              style={{ backgroundColor: style.bright }}
-            />
+            <CategoryIcon name={c.name} icon={c.icon} variant="chip" />
             {c.name}
           </button>
         );

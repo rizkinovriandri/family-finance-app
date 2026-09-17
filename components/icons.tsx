@@ -286,6 +286,224 @@ export function EyeIcon({ className, off }: { className?: string; off?: boolean 
   );
 }
 
+export function LogOutIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+      <path
+        d="M9 20H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h3"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M16 16.5 20.5 12 16 7.5M20 12H9.5"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+export function InfoIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+      <circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M12 11v5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <circle cx="12" cy="8" r="1" fill="currentColor" />
+    </svg>
+  );
+}
+
+export function PencilIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+      <path
+        d="m14.5 5 4.5 4.5L8 20.5H3.5V16L14.5 5Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      <path d="m13 6.5 4.5 4.5" stroke="currentColor" strokeWidth="1.6" />
+    </svg>
+  );
+}
+
+export function TrashIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+      <path
+        d="M5 7h14M9.5 7V5a1.5 1.5 0 0 1 1.5-1.5h2A1.5 1.5 0 0 1 14.5 5v2M6.5 7l.8 12.1a1.5 1.5 0 0 0 1.5 1.4h6.4a1.5 1.5 0 0 0 1.5-1.4L17.5 7"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+export function UtensilsIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+      <path
+        d="M7 3v6a2 2 0 0 0 4 0V3M9 9v12M15 3c-1.5 0-2.5 2-2.5 5s1 5 2.5 5v9"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+export function CarIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+      <path
+        d="M4 16v-3.5a2 2 0 0 1 .3-1L6 8a2 2 0 0 1 1.8-1h8.4A2 2 0 0 1 18 8l1.7 3.5a2 2 0 0 1 .3 1V16"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M3.5 16h17v2.5a1 1 0 0 1-1 1H16a1 1 0 0 1-1-1V18H9v.5a1 1 0 0 1-1 1H4.5a1 1 0 0 1-1-1V16Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      <circle cx="7.5" cy="16" r="1.2" fill="currentColor" />
+      <circle cx="16.5" cy="16" r="1.2" fill="currentColor" />
+    </svg>
+  );
+}
+
+export function ReceiptIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+      <path
+        d="M6 3h12v18l-2-1.3-2 1.3-2-1.3-2 1.3-2-1.3L6 21V3Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      <path d="M8.5 8h7M8.5 11.5h7M8.5 15h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function BookIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+      <path
+        d="M12 5.5c-1.3-1-3-1.5-5-1.5-1 0-2 .1-3 .4v13.6c1-.3 2-.4 3-.4 2 0 3.7.5 5 1.5m0-13.6c1.3-1 3-1.5 5-1.5 1 0 2 .1 3 .4v13.6c-1-.3-2-.4-3-.4-2 0-3.7.5-5 1.5m0-13.6v13.6"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+export function HeartIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+      <path
+        d="M12 20.5s-7.5-4.6-9.8-9A5.3 5.3 0 0 1 12 6.2 5.3 5.3 0 0 1 21.8 11.5c-2.3 4.4-9.8 9-9.8 9Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+export function FilmIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+      <rect x="3" y="4.5" width="18" height="15" rx="2" stroke="currentColor" strokeWidth="1.6" />
+      <path
+        d="M8 4.5v15M16 4.5v15M3 9.5h5M16 9.5h5M3 14.5h5M16 14.5h5"
+        stroke="currentColor"
+        strokeWidth="1.6"
+      />
+    </svg>
+  );
+}
+
+export function ShoppingBagIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+      <path
+        d="M6.5 8h11l1 12.5a1.5 1.5 0 0 1-1.5 1.5H7a1.5 1.5 0 0 1-1.5-1.5L6.5 8Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      <path d="M9 8V6a3 3 0 0 1 6 0v2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function GiftIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+      <rect x="3.5" y="9" width="17" height="4" rx="1" stroke="currentColor" strokeWidth="1.6" />
+      <path
+        d="M5 13h14v7.5a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V13Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12 9v12.5M12 9c-1-2.3-2.8-3.5-4.2-3.2C6.6 6 6.2 7.6 7.2 8.5c.9.8 2.7.7 4.8.5Zm0 0c1-2.3 2.8-3.5 4.2-3.2 1.2.3 1.6 1.9.6 2.8-.9.8-2.7.7-4.8.5Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+export function BriefcaseIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+      <rect x="3" y="7.5" width="18" height="12" rx="2" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M8.5 7.5V6a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v1.5" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M3 12.5h18" stroke="currentColor" strokeWidth="1.6" />
+    </svg>
+  );
+}
+
+export function StarIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+      <path
+        d="m12 3 2.6 5.9 6.4.6-4.8 4.3 1.4 6.3L12 16.9l-5.6 3.2 1.4-6.3-4.8-4.3 6.4-.6L12 3Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+export function CalendarIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+      <rect x="3.5" y="5" width="17" height="15" rx="2" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M3.5 9.5h17M8 3v3.5M16 3v3.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <circle cx="8" cy="13.5" r="1.1" fill="currentColor" />
+      <circle cx="12" cy="13.5" r="1.1" fill="currentColor" />
+      <circle cx="16" cy="13.5" r="1.1" fill="currentColor" />
+    </svg>
+  );
+}
+
 export function GoogleIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className}>

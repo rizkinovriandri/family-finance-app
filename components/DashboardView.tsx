@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   EyeIcon,
@@ -31,6 +31,15 @@ function getGreeting() {
   return "Selamat malam";
 }
 
+function formatToday() {
+  return new Intl.DateTimeFormat("id-ID", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date());
+}
+
 export function DashboardView({
   displayName,
   familyName,
@@ -57,23 +66,27 @@ export function DashboardView({
   trend: MonthlyTrendPoint[];
 }) {
   const [balanceVisible, setBalanceVisible] = useState(true);
+  // Salam & tanggal bergantung jam/zona waktu perangkat — dihitung ulang
+  // di client setelah mount, supaya render awal server (yang biasanya di
+  // UTC) tidak mismatch dengan browser user (WIB) saat hydration.
+  const [greeting, setGreeting] = useState("Halo");
+  const [today, setToday] = useState("");
+
+  useEffect(() => {
+    setGreeting(getGreeting());
+    setToday(formatToday());
+  }, []);
+
   const netBalance = totalIncome - totalExpense;
   const budgetPercentage =
     budgetTarget > 0 ? Math.round((budgetRealisasi / budgetTarget) * 100) : 0;
-
-  const today = new Intl.DateTimeFormat("id-ID", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(new Date());
 
   return (
     <div className="px-4 pt-6 flex flex-col gap-4">
       <div className="flex items-start justify-between">
         <div>
           <p className="text-lg text-text-primary">
-            {getGreeting()}, {displayName} 👋
+            {greeting}, {displayName} 👋
           </p>
           <p className="text-sm text-text-secondary mt-0.5">{today}</p>
           <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/15 text-accent text-xs font-medium px-2.5 py-1 mt-2">

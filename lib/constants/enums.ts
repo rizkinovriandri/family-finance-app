@@ -20,6 +20,37 @@ export const ACCOUNT_TYPES = [
 
 export const ACCOUNT_STATUSES = ["Aktif", "Nonaktif", "Ditutup"] as const;
 
+// Akun bertipe "Investasi *" nilainya dihitung dari holding di Portofolio
+// (investment_holdings), bukan dari saldo transaksi kas seperti akun biasa.
+export function isInvestmentAccountType(accountType: string) {
+  return accountType.startsWith("Investasi");
+}
+
+export const INVESTMENT_CATEGORIES = [
+  { value: "reksadana", label: "Reksadana" },
+  { value: "obligasi_sukuk", label: "Obligasi/Sukuk" },
+  { value: "saham", label: "Saham" },
+  { value: "emas", label: "Emas" },
+] as const;
+
+export const FUND_TYPES = [
+  "Pasar Uang",
+  "Pendapatan Tetap",
+  "Campuran",
+  "Saham",
+  "Indeks",
+] as const;
+
+export const BOND_TYPES = [
+  "Obligasi Pemerintah",
+  "Obligasi Korporasi",
+  "Sukuk Ritel",
+] as const;
+
+export const COUPON_FREQUENCIES = ["Bulanan", "Triwulanan", "Semesteran", "Tahunan"] as const;
+
+export const GOLD_TYPES = ["Fisik/Batangan", "Digital/Tabungan Emas"] as const;
+
 export const CURRENCIES = ["IDR", "USD", "SGD", "EUR", "JPY"] as const;
 
 export const TRANSACTION_TYPES = [

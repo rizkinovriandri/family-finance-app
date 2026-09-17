@@ -11,11 +11,13 @@ import {
   type BudgetWithRealization,
 } from "@/lib/supabase/queries/budgets";
 import { budgetSchema, type BudgetFormValues } from "@/lib/validation/budget";
-import { getCategoryStyle } from "@/lib/constants/enums";
 import { CurrencyInput } from "@/components/CurrencyInput";
+import { CategoryIcon } from "@/components/CategoryIcon";
+import { Modal } from "@/components/Modal";
 import { ChevronLeftIcon, ChevronRightIcon, CopyIcon } from "@/components/icons";
 import type { Category } from "@/lib/supabase/queries/categories";
 import { useRealtimeTable } from "@/lib/hooks/useRealtimeTable";
+import { formatCycleLabel, shiftCycle } from "@/lib/utils/date";
 
 function formatRupiah(amount: number) {
   return new Intl.NumberFormat("id-ID", {
@@ -33,11 +35,13 @@ const STATUS_STYLE: Record<BudgetWithRealization["status"], string> = {
 
 export function BudgetsManager({
   familyId,
+  monthStartDay,
   categories,
   initialBudgets,
   initialMonth,
 }: {
   familyId: string;
+  monthStartDay: number;
   categories: Category[];
   initialBudgets: BudgetWithRealization[];
   initialMonth: string;
@@ -54,10 +58,7 @@ export function BudgetsManager({
   const [loading, setLoading] = useState(false);
   const [duplicating, setDuplicating] = useState(false);
 
-  const monthLabel = new Intl.DateTimeFormat("id-ID", {
-    month: "long",
-    year: "numeric",
-  }).format(monthDate);
+  const monthLabel = formatCycleLabel(monthDate, monthStartDay);
 
   const expenseCategories = categories.filter((c) => c.type === "expense");
   const budgetedCategoryIds = new Set(budgets.map((b) => b.categoryId));
@@ -67,7 +68,7 @@ export function BudgetsManager({
 
   async function loadMonth(date: Date) {
     const supabase = createClient();
-    setBudgets(await listBudgetsForMonth(supabase, familyId, date));
+    setBudgets(await listBudgetsForMonth(supabase, familyId, date, monthStartDay));
   }
 
   useRealtimeTable("budgets", familyId, () => loadMonth(monthDate));
@@ -76,7 +77,7 @@ export function BudgetsManager({
   useRealtimeTable("transactions", familyId, () => loadMonth(monthDate));
 
   function shiftMonth(delta: number) {
-    const next = new Date(monthDate.getFullYear(), monthDate.getMonth() + delta, 1);
+    const next = shiftCycle(monthDate, delta);
     setMonthDate(next);
     setShowForm(false);
     setEditing(null);
@@ -86,11 +87,8 @@ export function BudgetsManager({
   async function handleDuplicate() {
     if (budgets.length === 0 || duplicating) return;
 
-    const nextMonthDate = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 1);
-    const nextMonthLabel = new Intl.DateTimeFormat("id-ID", {
-      month: "long",
-      year: "numeric",
-    }).format(nextMonthDate);
+    const nextMonthDate = shiftCycle(monthDate, 1);
+    const nextMonthLabel = formatCycleLabel(nextMonthDate, monthStartDay);
 
     if (
       !confirm(
@@ -103,7 +101,12 @@ export function BudgetsManager({
     setDuplicating(true);
     try {
       const supabase = createClient();
-      const result = await duplicateBudgetsToNextMonth(supabase, familyId, monthDate);
+      const result = await duplicateBudgetsToNextMonth(
+        supabase,
+        familyId,
+        monthDate,
+        monthStartDay
+      );
       setMonthDate(nextMonthDate);
       setShowForm(false);
       setEditing(null);
@@ -163,7 +166,7 @@ export function BudgetsManager({
       if (editing) {
         await updateBudget(supabase, editing.id, result.data);
       } else {
-        await createBudget(supabase, familyId, monthDate, result.data);
+        await createBudget(supabase, familyId, monthDate, result.data, monthStartDay);
       }
       await loadMonth(monthDate);
       setShowForm(false);
@@ -223,7 +226,6 @@ export function BudgetsManager({
 
       <div className="flex flex-col gap-2">
         {budgets.map((b) => {
-          const style = getCategoryStyle(b.categoryName);
           const barPercentage = Math.min(b.percentage, 100);
           return (
             <div
@@ -231,12 +233,7 @@ export function BudgetsManager({
               className="rounded-xl bg-bg-surface border border-border-subtle p-3"
             >
               <div className="flex items-center gap-3">
-                <span
-                  className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 font-semibold text-sm"
-                  style={{ backgroundColor: style.mutedBg, color: style.bright }}
-                >
-                  {b.categoryName.charAt(0)}
-                </span>
+                <CategoryIcon name={b.categoryName} icon={b.categoryIcon} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-sm font-medium text-text-primary truncate">
@@ -276,11 +273,8 @@ export function BudgetsManager({
         })}
       </div>
 
-      {showForm && (
-        <form
-          onSubmit={handleSubmit}
-          className="rounded-2xl bg-bg-surface border border-border-subtle p-4 flex flex-col gap-4"
-        >
+      <Modal open={showForm} onClose={() => setShowForm(false)}>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <h2 className="text-lg font-medium text-text-primary">
             {editing ? "Ubah anggaran" : "Buat anggaran baru"}
           </h2>
@@ -344,7 +338,7 @@ export function BudgetsManager({
             </button>
           </div>
         </form>
-      )}
+      </Modal>
 
       {!showForm && availableCategories.length > 0 && (
         <button
