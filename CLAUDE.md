@@ -116,8 +116,37 @@ Relasi user ↔ keluarga. Semua member punya hak akses setara (tidak ada role ad
 
 > `realisasi`, `selisih`, `% terpakai`, dan `status` (Aman/Waspada/Melebihi) **tidak disimpan** — dihitung via query dari `transactions` yang match `category_id` + `month`, sama seperti formula otomatis di Excel.
 
-### Fase 2 (belum masuk MVP, lihat Bagian 6)
-Excel lama juga punya sheet `Portofolio Investasi` dan `Kekayaan Bersih` untuk tracking investasi (saham, reksadana, emas, dsb.) dan net worth. Skemanya belum dirancang di sini — didesain ulang saat masuk fase pengembangan berikutnya.
+### `investment_holdings` (Fase 2 — dari sheet "Portofolio Investasi")
+Detail instrumen investasi yang disimpan di dalam akun bertipe Investasi (tab "Investasi" di halaman Akun). Satu akun investasi bisa berisi banyak holding, dikelompokkan ke 4 kategori.
+
+| Kolom | Tipe | Keterangan |
+|---|---|---|
+| id | uuid PK | |
+| family_id | uuid FK → families | |
+| account_id | uuid FK → accounts | akun investasi tempat holding ini tercatat |
+| category | enum | reksadana, obligasi_sukuk, saham, emas |
+| name | text | nama instrumen, mis. "BBCA", "ORI023", "Manulife Dana Saham" |
+| platform | text | broker/agen penjual/tempat beli |
+| purchase_date | date | |
+| quantity | numeric | lembar/lot/unit/gram — satuan mengikuti `category` |
+| purchase_price | numeric | harga/NAB/nominal beli per satuan (rata-rata biaya perolehan, terutama untuk Emas yang sering dibeli bertahap) |
+| current_price | numeric | harga terkini per satuan, diupdate manual berkala |
+| notes | text | opsional |
+| fund_manager | text | khusus Reksadana — Manajer Investasi |
+| fund_type | enum | khusus Reksadana — Pasar Uang, Pendapatan Tetap, Campuran, Saham, Indeks |
+| issuer | text | khusus Obligasi/Sukuk — penerbit (Pemerintah RI / nama korporasi) |
+| bond_type | enum | khusus Obligasi/Sukuk — Obligasi Pemerintah (ORI/SBR), Obligasi Korporasi, Sukuk Ritel (SR) |
+| coupon_rate | numeric | khusus Obligasi/Sukuk — kupon (% per tahun) |
+| coupon_frequency | enum | khusus Obligasi/Sukuk — Bulanan, Triwulanan, dst |
+| maturity_date | date | khusus Obligasi/Sukuk — tanggal jatuh tempo |
+| ticker_code | text | khusus Saham — kode saham, mis. "BBCA" |
+| gold_type | enum | khusus Emas — Fisik/Batangan atau Digital/Tabungan Emas |
+| created_at, updated_at | timestamptz | |
+
+> Field khusus per kategori (`fund_manager`, `issuer`, `ticker_code`, `gold_type`, dst) nullable — hanya diisi sesuai `category` holding tsb. Nilai investasi & untung/rugi **tidak disimpan sebagai kolom** — dihitung dari `quantity × current_price` vs `quantity × purchase_price`, sama seperti pola `current_balance` di Bagian 4.
+
+### Fase 2 lainnya (belum masuk MVP, lihat Bagian 6)
+Excel lama juga punya sheet `Kekayaan Bersih` untuk net worth tracking. Skemanya belum dirancang di sini — didesain ulang saat masuk fase pengembangan berikutnya.
 
 ## 5. Proses Bisnis & Aturan Transaksional (dari Excel lama)
 
@@ -147,6 +176,14 @@ Aturan ini **wajib diikuti** saat implementasi logic transaksi, karena jadi acua
 
 > Kategori-kategori ini di-seed sebagai default saat inisialisasi database (`is_default = true`), tapi idealnya user tetap bisa menambah kategori custom di kemudian hari.
 
+**Kategori Holding Investasi (Fase 2, `investment_holdings.category`):** Reksadana, Obligasi/Sukuk, Saham, Emas
+
+**Jenis Reksadana:** Pasar Uang, Pendapatan Tetap, Campuran, Saham, Indeks
+
+**Jenis Obligasi/Sukuk:** Obligasi Pemerintah (ORI/SBR), Obligasi Korporasi, Sukuk Ritel (SR)
+
+**Jenis Emas:** Fisik/Batangan, Digital/Tabungan Emas
+
 ## 6. Fitur & Scope
 
 ### MVP (versi pertama — wajib ada)
@@ -159,7 +196,7 @@ Aturan ini **wajib diikuti** saat implementasi logic transaksi, karena jadi acua
 - [ ] Realtime sync antar anggota keluarga (Supabase Realtime)
 
 ### Fase 2 (menyusul, di luar scope awal)
-- [ ] Portofolio investasi (saham, reksadana, obligasi, emas) — dari sheet "Portofolio Investasi"
+- [x] Portofolio investasi (saham, reksadana, obligasi/sukuk, emas) — dari sheet "Portofolio Investasi". Tabel `investment_holdings` (lihat Bagian 4), halaman `/accounts/[id]/holdings` ("Portofolio"), diakses dari tab Investasi di halaman Akun. Nilai & untung/rugi dihitung otomatis dari kuantitas × harga.
 - [ ] Kekayaan bersih / net worth tracking — dari sheet "Kekayaan Bersih"
 - [ ] Scan struk otomatis (OCR)
 - [ ] Reminder tagihan rutin
