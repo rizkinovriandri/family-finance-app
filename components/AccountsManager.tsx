@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
   createAccount,
@@ -19,12 +20,35 @@ import {
   ACCOUNT_TYPES,
   ACCOUNT_STATUSES,
   CURRENCIES,
+  isInvestmentAccountType as isInvestmentType,
 } from "@/lib/constants/enums";
 import { CurrencyInput } from "@/components/CurrencyInput";
-import { UserIcon } from "@/components/icons";
+import { UserIcon, LineChartIcon, ChevronRightIcon } from "@/components/icons";
 import { AccountTypeIcon } from "@/components/AccountTypeIcon";
+import { Field } from "@/components/FormField";
+import { Modal } from "@/components/Modal";
+import {
+  InvestmentHoldingFields,
+  EMPTY_HOLDING_FIELDS,
+  type HoldingFieldsState,
+} from "@/components/InvestmentHoldingFields";
+import { holdingSchema } from "@/lib/validation/investment";
+import { createHolding, getPortfolioValueByAccount } from "@/lib/supabase/queries/investments";
+import { refreshStockPrices } from "@/lib/utils/refreshStockPrices";
+import type { InvestmentCategory } from "@/lib/types/database";
 
 type Member = { id: string; display_name: string };
+type Tab = "Tabungan" | "Investasi";
+
+// Jenis akun investasi (dari CLAUDE.md Bagian 5) yang punya padanan langsung
+// ke kategori investment_holdings (Bagian 4). "Investasi Kripto" sengaja
+// tidak dipetakan — belum masuk 4 kategori holding yang dirancang.
+const ACCOUNT_TYPE_TO_CATEGORY: Partial<Record<string, InvestmentCategory>> = {
+  "Investasi Saham": "saham",
+  "Investasi Reksadana": "reksadana",
+  "Investasi Obligasi": "obligasi_sukuk",
+  "Investasi Emas": "emas",
+};
 
 const EMPTY_FORM: AccountFormValues = {
   name: "",
@@ -39,46 +63,131 @@ const EMPTY_FORM: AccountFormValues = {
   notes: "",
 };
 
-function formatRupiah(amount: number) {
+function formatCurrency(amount: number, currency: string) {
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
-    currency: "IDR",
+    currency,
     maximumFractionDigits: 0,
   }).format(amount);
+}
+
+interface NetWorthBreakdown {
+  currency: string;
+  tabungan: number;
+  investasi: number;
+  total: number;
 }
 
 export function AccountsManager({
   familyId,
   members,
   initialAccounts,
+  initialPortfolioValueByAccount,
 }: {
   familyId: string;
   members: Member[];
   initialAccounts: AccountWithBalance[];
+  initialPortfolioValueByAccount: Record<string, number>;
 }) {
+  const router = useRouter();
   const [accounts, setAccounts] = useState(initialAccounts);
+  const [portfolioValueByAccount, setPortfolioValueByAccount] = useState(
+    initialPortfolioValueByAccount
+  );
+  const [tab, setTab] = useState<Tab>("Tabungan");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<AccountFormValues>(EMPTY_FORM);
+  const [holdingName, setHoldingName] = useState("");
+  const [holdingFields, setHoldingFields] = useState<HoldingFieldsState>(EMPTY_HOLDING_FIELDS);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const memberNameById = new Map(members.map((m) => [m.id, m.display_name]));
 
+  // Net worth per mata uang — dipisah karena tidak ada konversi kurs di app
+  // ini, jadi Rp dan mis. USD tidak bisa asal dijumlah jadi satu angka.
+  // Akun berstatus "Ditutup" tidak dihitung (bukan kekayaan aktif lagi).
+  const netWorthByCurrency = useMemo<NetWorthBreakdown[]>(() => {
+    const map = new Map<string, { tabungan: number; investasi: number }>();
+    for (const a of accounts) {
+      if (a.status === "Ditutup") continue;
+      const isInvestment = isInvestmentType(a.account_type);
+      const value = isInvestment ? (portfolioValueByAccount[a.id] ?? 0) : a.current_balance;
+      const entry = map.get(a.currency) ?? { tabungan: 0, investasi: 0 };
+      if (isInvestment) entry.investasi += value;
+      else entry.tabungan += value;
+      map.set(a.currency, entry);
+    }
+    return Array.from(map.entries())
+      .map(([currency, v]) => ({
+        currency,
+        tabungan: v.tabungan,
+        investasi: v.investasi,
+        total: v.tabungan + v.investasi,
+      }))
+      .sort((a, b) => (a.currency === "IDR" ? -1 : b.currency === "IDR" ? 1 : 0));
+  }, [accounts, portfolioValueByAccount]);
+
+  const primaryNetWorth = netWorthByCurrency.find((c) => c.currency === "IDR") ?? netWorthByCurrency[0];
+  const otherNetWorth = netWorthByCurrency.filter((c) => c !== primaryNetWorth);
+  const tabunganPct =
+    primaryNetWorth && primaryNetWorth.total > 0
+      ? Math.round((primaryNetWorth.tabungan / primaryNetWorth.total) * 100)
+      : 0;
+  const investasiPct =
+    primaryNetWorth && primaryNetWorth.total > 0
+      ? Math.round((primaryNetWorth.investasi / primaryNetWorth.total) * 100)
+      : 0;
+
+  const filteredAccounts = accounts.filter(
+    (a) => isInvestmentType(a.account_type) === (tab === "Investasi")
+  );
+  const availableTypes = ACCOUNT_TYPES.filter(
+    (t) => isInvestmentType(t) === (tab === "Investasi")
+  );
+  const isInvestmentForm = isInvestmentType(form.account_type);
+  const holdingCategory = ACCOUNT_TYPE_TO_CATEGORY[form.account_type];
+
   async function syncAccounts() {
     const supabase = createClient();
     setAccounts(await listAccounts(supabase, familyId));
+  }
+
+  async function syncPortfolioValue() {
+    const supabase = createClient();
+    const map = await getPortfolioValueByAccount(supabase, familyId);
+    setPortfolioValueByAccount(Object.fromEntries(map));
   }
 
   useRealtimeTable("accounts", familyId, syncAccounts);
   // Saldo dihitung dari transaksi (view account_balances), jadi ikut
   // resync begitu ada transaksi baru/berubah/terhapus di family ini.
   useRealtimeTable("transactions", familyId, syncAccounts);
+  // Nilai akun investasi dihitung dari holding, bukan transaksi kas — ikut
+  // resync begitu holding di Portofolio berubah.
+  useRealtimeTable("investment_holdings", familyId, syncPortfolioValue);
+
+  // Begitu halaman Akun dibuka, update harga semua holding Saham dari Yahoo
+  // Finance di background (tidak perlu tombol manual). Realtime subscription
+  // di atas otomatis menangkap hasilnya dan me-refresh nilai portofolio.
+  useEffect(() => {
+    const supabase = createClient();
+    refreshStockPrices(supabase, familyId).catch(() => {
+      // Diamkan — kegagalan refresh harga (mis. offline/Yahoo down) tidak
+      // boleh mengganggu penggunaan halaman Akun; harga lama tetap dipakai.
+    });
+  }, [familyId]);
 
   function openCreateForm() {
     setEditingId(null);
-    setForm(EMPTY_FORM);
+    setForm({
+      ...EMPTY_FORM,
+      account_type: tab === "Investasi" ? "Investasi Saham" : "Tabungan",
+    });
+    setHoldingName("");
+    setHoldingFields(EMPTY_HOLDING_FIELDS);
     setFieldErrors({});
     setSubmitError(null);
     setShowForm(true);
@@ -115,6 +224,28 @@ export function AccountsManager({
       return;
     }
 
+    // Akun investasi baru (bukan edit) sekaligus mengisi holding pertamanya —
+    // field-nya divalidasi juga sebelum menyimpan apa pun, supaya tidak
+    // kejadian akun sudah dibuat tapi holding-nya gagal simpan.
+    const shouldCreateHolding = !editingId && isInvestmentForm && holdingCategory;
+    let holdingValues = null;
+    if (shouldCreateHolding) {
+      const holdingResult = holdingSchema.safeParse({
+        category: holdingCategory,
+        name: holdingName,
+        ...holdingFields,
+      });
+      if (!holdingResult.success) {
+        const errors: Record<string, string> = {};
+        for (const issue of holdingResult.error.issues) {
+          errors[String(issue.path[0])] = issue.message;
+        }
+        setFieldErrors(errors);
+        return;
+      }
+      holdingValues = holdingResult.data;
+    }
+
     setFieldErrors({});
     setSubmitError(null);
     setLoading(true);
@@ -123,12 +254,23 @@ export function AccountsManager({
       const supabase = createClient();
       if (editingId) {
         await updateAccount(supabase, editingId, result.data);
+        await syncAccounts();
+        setShowForm(false);
       } else {
-        await createAccount(supabase, familyId, result.data);
+        const created = await createAccount(supabase, familyId, result.data);
+        if (holdingValues) {
+          await createHolding(supabase, familyId, created.id, holdingValues);
+        }
+        setShowForm(false);
+        if (isInvestmentForm) {
+          // Arahkan ke Portofolio — kalau holding pertama sudah diisi, akan
+          // langsung terlihat di sana; kalau belum (mis. Investasi Kripto,
+          // belum ada kategori holding yang cocok), user bisa tambah manual.
+          router.push(`/accounts/${created.id}/holdings`);
+          return;
+        }
+        await syncAccounts();
       }
-
-      await syncAccounts();
-      setShowForm(false);
     } catch (err) {
       setSubmitError(
         err instanceof Error ? err.message : "Gagal menyimpan akun."
@@ -149,24 +291,84 @@ export function AccountsManager({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-text-primary">Akun</h1>
-        <button
-          onClick={openCreateForm}
-          className="rounded-xl bg-accent px-4 py-2 text-sm font-medium text-white"
-        >
-          + Tambah
-        </button>
+      <h1 className="text-2xl font-semibold text-text-primary">Akun</h1>
+
+      {primaryNetWorth && (
+        <div className="rounded-2xl bg-bg-surface border border-border-subtle p-4">
+          <p className="text-sm text-text-secondary">Total Kekayaan Bersih</p>
+          <p className="text-2xl font-bold text-text-primary mt-1">
+            {formatCurrency(primaryNetWorth.total, primaryNetWorth.currency)}
+          </p>
+
+          {primaryNetWorth.total > 0 && (
+            <>
+              <div className="h-1.5 rounded-full bg-bg-page mt-3 overflow-hidden flex">
+                <div className="h-full bg-accent" style={{ width: `${tabunganPct}%` }} />
+                <div className="h-full bg-success" style={{ width: `${investasiPct}%` }} />
+              </div>
+              <div className="flex items-center justify-between mt-2 gap-2">
+                <span className="flex items-center gap-1.5 text-xs text-text-secondary min-w-0">
+                  <span className="w-2 h-2 rounded-full bg-accent shrink-0" />
+                  <span className="truncate">
+                    Tabungan {formatCurrency(primaryNetWorth.tabungan, primaryNetWorth.currency)}
+                  </span>
+                  <span className="text-text-muted shrink-0">({tabunganPct}%)</span>
+                </span>
+                <span className="flex items-center gap-1.5 text-xs text-text-secondary min-w-0">
+                  <span className="w-2 h-2 rounded-full bg-success shrink-0" />
+                  <span className="truncate">
+                    Investasi {formatCurrency(primaryNetWorth.investasi, primaryNetWorth.currency)}
+                  </span>
+                  <span className="text-text-muted shrink-0">({investasiPct}%)</span>
+                </span>
+              </div>
+            </>
+          )}
+
+          {otherNetWorth.length > 0 && (
+            <div className="flex flex-col gap-1.5 mt-3 pt-3 border-t border-border-subtle">
+              <p className="text-xs text-text-muted">Mata uang lain</p>
+              {otherNetWorth.map((c) => (
+                <div key={c.currency} className="flex items-center justify-between text-xs">
+                  <span className="text-text-secondary">{c.currency}</span>
+                  <span className="text-text-primary font-medium">
+                    {formatCurrency(c.total, c.currency)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="flex rounded-xl bg-bg-surface border border-border-subtle p-1">
+        {(["Tabungan", "Investasi"] as Tab[]).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`flex-1 rounded-lg py-2 text-xs font-medium ${
+              tab === t ? "bg-accent text-white" : "text-text-secondary"
+            }`}
+          >
+            {t}
+          </button>
+        ))}
       </div>
 
-      {accounts.length === 0 && !showForm && (
+      {filteredAccounts.length === 0 && !showForm && (
         <p className="text-sm text-text-muted text-center mt-6">
-          Belum ada akun. Tambah akun pertama kamu.
+          {tab === "Investasi"
+            ? "Belum ada akun investasi."
+            : "Belum ada akun. Tambah akun pertama kamu."}
         </p>
       )}
 
       <div className="flex flex-col gap-2">
-        {accounts.map((account) => (
+        {filteredAccounts.map((account) => {
+          const displayValue = isInvestmentType(account.account_type)
+            ? (portfolioValueByAccount[account.id] ?? 0)
+            : account.current_balance;
+          return (
           <div
             key={account.id}
             className="rounded-xl bg-bg-surface border border-border-subtle p-3 flex items-center gap-3"
@@ -179,7 +381,7 @@ export function AccountsManager({
                   {account.name}
                 </p>
                 <p className="text-sm font-semibold text-text-primary shrink-0">
-                  {formatRupiah(account.current_balance)}
+                  {formatCurrency(displayValue, account.currency)}
                 </p>
               </div>
 
@@ -208,6 +410,19 @@ export function AccountsManager({
                 </div>
               </div>
 
+              {isInvestmentType(account.account_type) && (
+                <Link
+                  href={`/accounts/${account.id}/holdings`}
+                  className="flex items-center justify-between gap-2 rounded-lg bg-accent/10 text-accent px-2.5 py-1.5 mt-2"
+                >
+                  <span className="flex items-center gap-1.5 text-xs font-medium">
+                    <LineChartIcon className="w-3.5 h-3.5" />
+                    Lihat Portofolio
+                  </span>
+                  <ChevronRightIcon className="w-3.5 h-3.5" />
+                </Link>
+              )}
+
               <div className="flex gap-3 mt-1">
                 <Link
                   href={`/accounts/${account.id}/history`}
@@ -230,16 +445,14 @@ export function AccountsManager({
               </div>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
-      {showForm && (
-        <form
-          onSubmit={handleSubmit}
-          className="rounded-2xl bg-bg-surface border border-border-subtle p-4 flex flex-col gap-3"
-        >
+      <Modal open={showForm} onClose={() => setShowForm(false)}>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <h2 className="text-lg font-medium text-text-primary">
-            {editingId ? "Ubah akun" : "Tambah akun"}
+            {editingId ? "Ubah akun" : `Tambah akun ${tab}`}
           </h2>
 
           <Field label="Nama akun" error={fieldErrors.name}>
@@ -247,6 +460,9 @@ export function AccountsManager({
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               className="input"
+              placeholder={
+                isInvestmentForm ? 'mis. "RDN Mirae Asset", "Bibit"' : 'mis. "BCA Tabungan"'
+              }
             />
           </Field>
 
@@ -261,7 +477,7 @@ export function AccountsManager({
               }
               className="input"
             >
-              {ACCOUNT_TYPES.map((type) => (
+              {availableTypes.map((type) => (
                 <option key={type} value={type}>
                   {type}
                 </option>
@@ -269,32 +485,79 @@ export function AccountsManager({
             </select>
           </Field>
 
-          <Field label="Institusi/Bank (opsional)" error={fieldErrors.institution}>
-            <input
-              value={form.institution}
-              onChange={(e) => setForm({ ...form, institution: e.target.value })}
-              className="input"
-            />
-          </Field>
+          {!editingId && isInvestmentForm && holdingCategory && (
+            <>
+              <p className="text-xs text-text-muted -mt-1">
+                Isi holding pertama untuk akun ini sekalian — bisa tambah lagi nanti di
+                Portofolio.
+              </p>
 
-          <Field label="Pemilik" error={fieldErrors.owner_member_id}>
-            <select
-              value={form.owner_member_id}
-              onChange={(e) =>
-                setForm({ ...form, owner_member_id: e.target.value })
-              }
-              className="input"
-            >
-              <option value="">-</option>
-              {members.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.display_name}
-                </option>
-              ))}
-            </select>
-          </Field>
+              <Field label="Nama instrumen" error={fieldErrors.name}>
+                <input
+                  value={holdingName}
+                  onChange={(e) => setHoldingName(e.target.value)}
+                  className="input"
+                  placeholder='mis. "BBCA", "ORI023", "Manulife Dana Saham"'
+                />
+              </Field>
 
-          <div className="grid grid-cols-2 gap-3">
+              <InvestmentHoldingFields
+                category={holdingCategory}
+                value={holdingFields}
+                onChange={setHoldingFields}
+                errors={fieldErrors}
+              />
+            </>
+          )}
+
+          {!editingId && isInvestmentForm && !holdingCategory && (
+            <p className="text-xs text-text-muted -mt-1">
+              Jenis akun ini belum punya form holding khusus — buat akunnya dulu, isi
+              detail investasinya nanti lewat halaman Portofolio.
+            </p>
+          )}
+
+          {!isInvestmentForm && (
+            <Field label="Institusi/Bank (opsional)" error={fieldErrors.institution}>
+              <input
+                value={form.institution}
+                onChange={(e) => setForm({ ...form, institution: e.target.value })}
+                className="input"
+                placeholder='mis. "Bank BCA"'
+              />
+            </Field>
+          )}
+
+          {!isInvestmentForm && (
+            <Field label="No. Rekening (opsional)" error={fieldErrors.account_identifier}>
+              <input
+                value={form.account_identifier}
+                onChange={(e) => setForm({ ...form, account_identifier: e.target.value })}
+                className="input"
+              />
+            </Field>
+          )}
+
+          {!isInvestmentForm && (
+            <Field label="Pemilik" error={fieldErrors.owner_member_id}>
+              <select
+                value={form.owner_member_id}
+                onChange={(e) =>
+                  setForm({ ...form, owner_member_id: e.target.value })
+                }
+                className="input"
+              >
+                <option value="">-</option>
+                {members.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.display_name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
+
+          {!isInvestmentForm && (
             <Field label="Mata uang" error={fieldErrors.currency}>
               <select
                 value={form.currency}
@@ -313,7 +576,21 @@ export function AccountsManager({
                 ))}
               </select>
             </Field>
+          )}
 
+          {!isInvestmentForm && (
+            <Field label="Saldo awal" error={fieldErrors.opening_balance}>
+              <CurrencyInput
+                value={form.opening_balance}
+                currency={form.currency}
+                onChange={(opening_balance) =>
+                  setForm({ ...form, opening_balance })
+                }
+              />
+            </Field>
+          )}
+
+          {!isInvestmentForm && (
             <Field label="Status" error={fieldErrors.status}>
               <select
                 value={form.status}
@@ -332,25 +609,29 @@ export function AccountsManager({
                 ))}
               </select>
             </Field>
-          </div>
+          )}
 
-          <Field label="Saldo awal" error={fieldErrors.opening_balance}>
-            <CurrencyInput
-              value={form.opening_balance}
-              onChange={(opening_balance) =>
-                setForm({ ...form, opening_balance })
-              }
-            />
-          </Field>
+          {!isInvestmentForm && (
+            <Field label="Tujuan menabung (opsional)" error={fieldErrors.priority_goal}>
+              <input
+                value={form.priority_goal}
+                onChange={(e) => setForm({ ...form, priority_goal: e.target.value })}
+                className="input"
+                placeholder='mis. "Dana darurat", "DP rumah"'
+              />
+            </Field>
+          )}
 
-          <Field label="Catatan (opsional)" error={fieldErrors.notes}>
-            <textarea
-              value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              className="input"
-              rows={2}
-            />
-          </Field>
+          {!isInvestmentForm && (
+            <Field label="Catatan (opsional)" error={fieldErrors.notes}>
+              <textarea
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                className="input"
+                rows={2}
+              />
+            </Field>
+          )}
 
           {submitError && <p className="text-sm text-danger">{submitError}</p>}
 
@@ -371,25 +652,16 @@ export function AccountsManager({
             </button>
           </div>
         </form>
-      )}
-    </div>
-  );
-}
+      </Modal>
 
-function Field({
-  label,
-  error,
-  children,
-}: {
-  label: string;
-  error?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label className="text-sm text-text-secondary">{label}</label>
-      {children}
-      {error && <p className="text-xs text-danger">{error}</p>}
+      {!showForm && (
+        <button
+          onClick={openCreateForm}
+          className="rounded-xl bg-accent py-3 text-white font-medium"
+        >
+          + Tambah Akun {tab}
+        </button>
+      )}
     </div>
   );
 }

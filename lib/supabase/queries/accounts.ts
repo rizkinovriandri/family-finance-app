@@ -54,10 +54,13 @@ export async function createAccount(
   familyId: string,
   input: AccountFormValues
 ) {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("accounts")
-    .insert({ family_id: familyId, ...toInsertPayload(input) });
+    .insert({ family_id: familyId, ...toInsertPayload(input) })
+    .select("id")
+    .single();
   if (error) throw error;
+  return data;
 }
 
 export async function updateAccount(

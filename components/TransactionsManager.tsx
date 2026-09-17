@@ -1,18 +1,20 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   deleteTransaction,
   listTransactions,
   type TransactionWithDetails,
 } from "@/lib/supabase/queries/transactions";
-import { getCategoryStyle } from "@/lib/constants/enums";
 import { TransactionForm } from "@/components/TransactionForm";
+import { Modal } from "@/components/Modal";
+import { CategoryIcon } from "@/components/CategoryIcon";
 import type { Category } from "@/lib/supabase/queries/categories";
 import Link from "next/link";
 import { ChevronLeftIcon } from "@/components/icons";
 import { useRealtimeTable } from "@/lib/hooks/useRealtimeTable";
+import { toLocalISODate } from "@/lib/utils/date";
 
 type Account = { id: string; name: string };
 type Member = { id: string; display_name: string };
@@ -35,15 +37,21 @@ function formatRowDate(dateStr: string) {
   }).format(date);
 }
 
-function dateGroupLabel(dateStr: string) {
-  const date = new Date(dateStr + "T00:00:00");
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
+// todayKey null berarti "belum tahu tanggal lokal client" (render awal
+// server, sebelum hydration) — sengaja tidak menebak "Hari ini"/"Kemarin"
+// supaya hasilnya sama persis dengan render client pertama, baru diisi
+// lewat useEffect. Zona waktu server (biasanya UTC) beda dengan browser
+// user (WIB), jadi membandingkan tanggal pakai new Date() langsung di sini
+// bisa mismatch saat hydration.
+function dateGroupLabel(dateStr: string, todayKey: string | null) {
+  if (todayKey) {
+    if (dateStr === todayKey) return "Hari ini";
+    const yesterday = new Date(todayKey + "T00:00:00");
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (dateStr === toLocalISODate(yesterday)) return "Kemarin";
+  }
 
-  if (date.getTime() === today.getTime()) return "Hari ini";
-  if (date.getTime() === yesterday.getTime()) return "Kemarin";
+  const date = new Date(dateStr + "T00:00:00");
   return new Intl.DateTimeFormat("id-ID", {
     day: "numeric",
     month: "long",
@@ -80,14 +88,19 @@ export function TransactionsManager({
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<TransactionWithDetails | null>(null);
+  const [todayKey, setTodayKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    setTodayKey(toLocalISODate(new Date()));
+  }, []);
 
   const usedCategories = useMemo(() => {
-    const map = new Map<string, string>();
+    const map = new Map<string, { name: string; icon: string | null }>();
     for (const t of transactions) {
       if (filterAccountId && t.accountId !== filterAccountId) continue;
-      map.set(t.categoryId, t.categoryName);
+      map.set(t.categoryId, { name: t.categoryName, icon: t.categoryIcon });
     }
-    return Array.from(map, ([id, name]) => ({ id, name })).sort((a, b) =>
+    return Array.from(map, ([id, v]) => ({ id, ...v })).sort((a, b) =>
       a.name.localeCompare(b.name)
     );
   }, [transactions, filterAccountId]);
@@ -110,12 +123,12 @@ export function TransactionsManager({
   const grouped = useMemo(() => {
     const groups = new Map<string, TransactionWithDetails[]>();
     for (const t of filtered) {
-      const label = dateGroupLabel(t.date);
+      const label = dateGroupLabel(t.date, todayKey);
       if (!groups.has(label)) groups.set(label, []);
       groups.get(label)!.push(t);
     }
     return Array.from(groups.entries());
-  }, [filtered]);
+  }, [filtered, todayKey]);
 
   async function syncTransactions() {
     const supabase = createClient();
@@ -180,7 +193,13 @@ export function TransactionsManager({
         </button>
       </div>
 
-      {showForm && (
+      <Modal
+        open={showForm}
+        onClose={() => {
+          setShowForm(false);
+          setEditing(null);
+        }}
+      >
         <TransactionForm
           familyId={familyId}
           accounts={accounts}
@@ -195,7 +214,7 @@ export function TransactionsManager({
             setEditing(null);
           }}
         />
-      )}
+      </Modal>
 
       <input
         value={search}
@@ -231,7 +250,6 @@ export function TransactionsManager({
             Semua Kategori
           </button>
           {usedCategories.map((c) => {
-            const style = getCategoryStyle(c.name);
             const active = categoryFilter === c.id;
             return (
               <button
@@ -243,10 +261,7 @@ export function TransactionsManager({
                     : "border-border-subtle text-text-secondary"
                 }`}
               >
-                <span
-                  className="w-2 h-2 rounded-full shrink-0"
-                  style={{ backgroundColor: style.bright }}
-                />
+                <CategoryIcon name={c.name} icon={c.icon} variant="chip" />
                 {c.name}
               </button>
             );
@@ -265,19 +280,13 @@ export function TransactionsManager({
           <p className="text-xs text-text-muted font-medium">{label}</p>
           <div className="flex flex-col gap-2">
             {items.map((t) => {
-              const style = getCategoryStyle(t.categoryName);
               const isIncome = t.type === "Pemasukan";
               return (
                 <div
                   key={t.id}
                   className="rounded-xl bg-bg-surface border border-border-subtle p-3 flex items-center gap-3"
                 >
-                  <span
-                    className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 font-semibold"
-                    style={{ backgroundColor: style.mutedBg, color: style.bright }}
-                  >
-                    {t.categoryName.charAt(0)}
-                  </span>
+                  <CategoryIcon name={t.categoryName} icon={t.categoryIcon} />
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">

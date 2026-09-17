@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getMyFamilyMembership, listFamilyMembers } from "@/lib/supabase/queries/families";
 import { listAccounts } from "@/lib/supabase/queries/accounts";
+import { getPortfolioValueByAccount } from "@/lib/supabase/queries/investments";
 import { AccountsManager } from "@/components/AccountsManager";
 
 export default async function AccountsPage() {
@@ -12,9 +13,10 @@ export default async function AccountsPage() {
     redirect("/dashboard");
   }
 
-  const [accounts, members] = await Promise.all([
+  const [accounts, members, portfolioValueByAccount] = await Promise.all([
     listAccounts(supabase, membership.family_id),
     listFamilyMembers(supabase, membership.family_id),
+    getPortfolioValueByAccount(supabase, membership.family_id),
   ]);
 
   return (
@@ -23,6 +25,7 @@ export default async function AccountsPage() {
         familyId={membership.family_id}
         members={members}
         initialAccounts={accounts}
+        initialPortfolioValueByAccount={Object.fromEntries(portfolioValueByAccount)}
       />
     </div>
   );

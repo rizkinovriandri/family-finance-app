@@ -1,4 +1,4 @@
-const CACHE_NAME = "keuangan-keluarga-v1";
+const CACHE_NAME = "keuangan-keluarga-v2";
 const APP_SHELL = ["/manifest.webmanifest", "/icon-192", "/icon-512"];
 
 self.addEventListener("install", (event) => {
@@ -43,7 +43,16 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Aset statis (ikon, JS, CSS): cache-first.
+  // Hanya aset statis ber-hash (JS/CSS bundle Next.js) dan app shell yang aman
+  // di-cache-first — keduanya immutable per URL. Request lain (mis. fetch RSC
+  // internal Next.js saat navigasi lewat <Link>) dibiarkan lewat ke network
+  // apa adanya, supaya service worker tidak menyajikan payload router yang basi
+  // dan bikin navigasi client-side diam-diam gagal.
+  const isStaticAsset =
+    url.pathname.startsWith("/_next/static/") || APP_SHELL.includes(url.pathname);
+
+  if (!isStaticAsset) return;
+
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached;

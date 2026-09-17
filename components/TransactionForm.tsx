@@ -15,6 +15,7 @@ import {
 import { PAYMENT_METHODS } from "@/lib/constants/enums";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { CategoryPicker } from "@/components/CategoryPicker";
+import { Field } from "@/components/FormField";
 import type { Category } from "@/lib/supabase/queries/categories";
 import { toLocalISODate } from "@/lib/utils/date";
 
@@ -144,10 +145,7 @@ export function TransactionForm({
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="rounded-2xl bg-bg-surface border border-border-subtle p-4 flex flex-col gap-4"
-    >
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <h2 className="text-lg font-medium text-text-primary">
         {editing ? "Ubah transaksi" : "Tambah transaksi"}
       </h2>
@@ -305,23 +303,5 @@ export function TransactionForm({
         </button>
       </div>
     </form>
-  );
-}
-
-function Field({
-  label,
-  error,
-  children,
-}: {
-  label: string;
-  error?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label className="text-sm text-text-secondary">{label}</label>
-      {children}
-      {error && <p className="text-xs text-danger">{error}</p>}
-    </div>
   );
 }
