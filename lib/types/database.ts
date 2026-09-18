@@ -95,7 +95,15 @@ export interface Database {
           display_name?: string;
           created_at?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "family_members_family_id_fkey";
+            columns: ["family_id"];
+            isOneToOne: false;
+            referencedRelation: "families";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       categories: {
         Row: {

@@ -10,9 +10,12 @@ export async function getMyFamilyMembership(supabase: Client) {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
+  // Digabung jadi satu query (embedded join lewat FK family_id) supaya
+  // tidak perlu 2 round-trip terpisah ke Supabase — dipanggil di hampir
+  // semua halaman jadi lumayan berpengaruh ke waktu load.
   const { data: membership, error } = await supabase
     .from("family_members")
-    .select("id, family_id, display_name")
+    .select("id, family_id, display_name, families(name, month_start_day)")
     .eq("user_id", user.id)
     .limit(1)
     .maybeSingle();
@@ -20,16 +23,13 @@ export async function getMyFamilyMembership(supabase: Client) {
   if (error) throw error;
   if (!membership) return null;
 
-  const { data: family, error: familyError } = await supabase
-    .from("families")
-    .select("name, month_start_day")
-    .eq("id", membership.family_id)
-    .single();
-
-  if (familyError) throw familyError;
+  const family = membership.families;
+  if (!family) return null;
 
   return {
-    ...membership,
+    id: membership.id,
+    family_id: membership.family_id,
+    display_name: membership.display_name,
     family_name: family.name,
     month_start_day: family.month_start_day,
   };
