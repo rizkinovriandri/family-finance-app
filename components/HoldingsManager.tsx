@@ -20,6 +20,7 @@ import {
   type HoldingFieldsState,
 } from "@/components/InvestmentHoldingFields";
 import { Field } from "@/components/FormField";
+import { Modal } from "@/components/Modal";
 import { ChevronLeftIcon } from "@/components/icons";
 import { useRealtimeTable } from "@/lib/hooks/useRealtimeTable";
 
@@ -176,7 +177,7 @@ export function HoldingsManager({
         )}
       </div>
 
-      {holdings.length === 0 && !showForm && (
+      {holdings.length === 0 && (
         <p className="text-sm text-text-muted text-center mt-6">
           Belum ada holding investasi di akun ini.
         </p>
@@ -230,11 +231,8 @@ export function HoldingsManager({
         );
       })}
 
-      {showForm && (
-        <form
-          onSubmit={handleSubmit}
-          className="rounded-2xl bg-bg-surface border border-border-subtle p-4 flex flex-col gap-3"
-        >
+      <Modal open={showForm} onClose={closeForm}>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <h2 className="text-lg font-medium text-text-primary">
             {editing ? "Ubah holding" : "Tambah holding"}
           </h2>
@@ -289,16 +287,14 @@ export function HoldingsManager({
             </button>
           </div>
         </form>
-      )}
+      </Modal>
 
-      {!showForm && (
-        <button
-          onClick={openCreateForm}
-          className="rounded-xl bg-accent py-3 text-white font-medium"
-        >
-          + Tambah Holding
-        </button>
-      )}
+      <button
+        onClick={openCreateForm}
+        className="rounded-xl bg-accent py-3 text-white font-medium"
+      >
+        + Tambah Holding
+      </button>
     </div>
   );
 }

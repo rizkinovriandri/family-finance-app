@@ -192,11 +192,11 @@ Aturan ini **wajib diikuti** saat implementasi logic transaksi, karena jadi acua
 - [x] CRUD transaksi (income/expense/transfer, sesuai aturan Bagian 5) — termasuk riwayat transaksi per akun
 - [x] Budget bulanan per kategori (target + realisasi otomatis) — termasuk duplikasi anggaran ke bulan berikutnya
 - [x] Dashboard: total saldo semua akun, total pemasukan/pengeluaran, saldo bersih, realisasi anggaran vs target, kategori yang melebihi budget, grafik tren bulanan
-- [ ] PWA (installable, "Add to Home Screen")
-- [ ] Realtime sync antar anggota keluarga (Supabase Realtime)
+- [x] PWA (installable, "Add to Home Screen") — manifest route, icons, service worker dengan offline fallback, install-hint UI, metadata iOS
+- [x] Realtime sync antar anggota keluarga (Supabase Realtime) — mencakup accounts, transactions, budgets, categories, dan investment_holdings
 
 ### Fase 2 (menyusul, di luar scope awal)
-- [x] Portofolio investasi (saham, reksadana, obligasi/sukuk, emas) — dari sheet "Portofolio Investasi". Tabel `investment_holdings` (lihat Bagian 4), halaman `/accounts/[id]/holdings` ("Portofolio"), diakses dari tab Investasi di halaman Akun. Nilai & untung/rugi dihitung otomatis dari kuantitas × harga.
+- [x] Portofolio investasi (saham, reksadana, obligasi/sukuk, emas) — dari sheet "Portofolio Investasi". Tabel `investment_holdings` (lihat Bagian 4), halaman `/accounts/[id]/holdings` ("Portofolio"), diakses dari tab Investasi di halaman Akun. Nilai & untung/rugi dihitung otomatis dari kuantitas × harga. Bonus: `app/api/stock-price/route.ts` mengambil harga saham terkini otomatis dari Yahoo Finance. Gap kecil: akun **Investasi Kripto** & **Dana Pensiun** belum punya form holding khusus (input manual).
 - [ ] Kekayaan bersih / net worth tracking — dari sheet "Kekayaan Bersih"
 - [ ] Scan struk otomatis (OCR)
 - [ ] Reminder tagihan rutin
