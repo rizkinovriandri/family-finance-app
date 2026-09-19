@@ -51,6 +51,7 @@ export default async function DashboardPage() {
       <RealtimeDashboardSync familyId={membership.family_id} />
       <DashboardView
         displayName={membership.display_name}
+        avatarUrl={membership.avatar_url}
         familyName={membership.family_name}
         balances={balances}
         accountsCount={accounts.length}

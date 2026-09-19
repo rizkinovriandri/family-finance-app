@@ -13,6 +13,7 @@ import {
 } from "@/components/icons";
 import { DonutChart } from "@/components/DonutChart";
 import { TrendChart } from "@/components/TrendChart";
+import { getInitials } from "@/lib/utils/avatar";
 import type { CategorySlice, MonthlyTrendPoint } from "@/lib/supabase/queries/transactions";
 
 function formatRupiah(amount: number) {
@@ -50,6 +51,7 @@ function formatToday() {
 
 export function DashboardView({
   displayName,
+  avatarUrl,
   familyName,
   balances,
   accountsCount,
@@ -62,6 +64,7 @@ export function DashboardView({
   trend,
 }: {
   displayName: string;
+  avatarUrl: string | null;
   familyName: string;
   balances: { currency: string; total: number }[];
   accountsCount: number;
@@ -93,16 +96,32 @@ export function DashboardView({
 
   return (
     <div className="px-4 pt-6 flex flex-col gap-4">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-lg text-text-primary">
-            {greeting}, {displayName} 👋
-          </p>
-          <p className="text-sm text-text-secondary mt-0.5">{today}</p>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/15 text-accent text-xs font-medium px-2.5 py-1 mt-2">
-            <HomeIcon className="w-3.5 h-3.5" />
-            Keluarga {familyName}
-          </span>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <Link href="/profile" className="shrink-0" aria-label="Edit profil">
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- URL publik dinamis dari Supabase Storage
+              <img
+                src={avatarUrl}
+                alt="Foto profil"
+                className="w-12 h-12 rounded-full object-cover ring-2 ring-accent/30"
+              />
+            ) : (
+              <div className="w-12 h-12 rounded-full bg-accent flex items-center justify-center text-white font-semibold ring-2 ring-accent/30">
+                {getInitials(displayName)}
+              </div>
+            )}
+          </Link>
+          <div className="min-w-0">
+            <p className="text-lg text-text-primary truncate">
+              {greeting}, {displayName} 👋
+            </p>
+            <p className="text-sm text-text-secondary mt-0.5">{today}</p>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/15 text-accent text-xs font-medium px-2.5 py-1 mt-2">
+              <HomeIcon className="w-3.5 h-3.5" />
+              Keluarga {familyName}
+            </span>
+          </div>
         </div>
         <div className="flex gap-2 shrink-0">
           <Link
