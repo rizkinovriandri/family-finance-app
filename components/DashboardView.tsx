@@ -23,6 +23,14 @@ function formatRupiah(amount: number) {
   }).format(amount);
 }
 
+function formatCurrency(amount: number, currency: string) {
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
 function getGreeting() {
   const hour = new Date().getHours();
   if (hour < 10) return "Selamat pagi";
@@ -43,7 +51,7 @@ function formatToday() {
 export function DashboardView({
   displayName,
   familyName,
-  totalBalance,
+  balances,
   accountsCount,
   totalIncome,
   totalExpense,
@@ -55,7 +63,7 @@ export function DashboardView({
 }: {
   displayName: string;
   familyName: string;
-  totalBalance: number;
+  balances: { currency: string; total: number }[];
   accountsCount: number;
   totalIncome: number;
   totalExpense: number;
@@ -77,6 +85,8 @@ export function DashboardView({
     setToday(formatToday());
   }, []);
 
+  const primaryBalance = balances.find((b) => b.currency === "IDR") ?? balances[0];
+  const otherBalances = balances.filter((b) => b !== primaryBalance);
   const netBalance = totalIncome - totalExpense;
   const budgetPercentage =
     budgetTarget > 0 ? Math.round((budgetRealisasi / budgetTarget) * 100) : 0;
@@ -131,8 +141,23 @@ export function DashboardView({
           </button>
         </div>
         <p className="text-3xl font-bold text-text-primary mt-1">
-          {balanceVisible ? formatRupiah(totalBalance) : "Rp ••••••••"}
+          {balanceVisible
+            ? formatCurrency(primaryBalance?.total ?? 0, primaryBalance?.currency ?? "IDR")
+            : "Rp ••••••••"}
         </p>
+
+        {otherBalances.length > 0 && (
+          <div className="flex flex-col gap-1 mt-3 pt-3 border-t border-border-subtle">
+            {otherBalances.map((b) => (
+              <div key={b.currency} className="flex items-center justify-between text-xs">
+                <span className="text-text-secondary">{b.currency}</span>
+                <span className="text-text-primary font-medium">
+                  {balanceVisible ? formatCurrency(b.total, b.currency) : "••••••"}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </Link>
 
       <div className="grid grid-cols-3 gap-3">

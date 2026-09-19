@@ -4,7 +4,7 @@ import { listAccounts } from "@/lib/supabase/queries/accounts";
 import { getMonthlySummary, getMonthlyTrend } from "@/lib/supabase/queries/transactions";
 import { listBudgetsForMonth } from "@/lib/supabase/queries/budgets";
 import { getPortfolioValueByAccount } from "@/lib/supabase/queries/investments";
-import { isInvestmentAccountType } from "@/lib/constants/enums";
+import { computeNetWorth } from "@/lib/utils/networth";
 import { FamilyOnboarding } from "@/components/FamilyOnboarding";
 import { DashboardView } from "@/components/DashboardView";
 import { RealtimeDashboardSync } from "@/components/RealtimeDashboardSync";
@@ -34,14 +34,12 @@ export default async function DashboardPage() {
     getPortfolioValueByAccount(supabase, membership.family_id),
   ]);
 
-  // Akun investasi nilainya dari holding di Portofolio, bukan saldo
-  // transaksi kas — lihat catatan yang sama di AccountsManager.
-  const totalBalance = accounts.reduce((sum, a) => {
-    const value = isInvestmentAccountType(a.account_type)
-      ? (portfolioValueByAccount.get(a.id) ?? 0)
-      : a.current_balance;
-    return sum + value;
-  }, 0);
+  // Dipisah per mata uang — tidak ada konversi kurs di app ini, jadi Rp dan
+  // mis. USD tidak bisa asal dijumlah jadi satu angka (lihat juga
+  // AccountsManager & NetWorthView yang pakai util yang sama).
+  const balances = computeNetWorth(accounts, Object.fromEntries(portfolioValueByAccount)).map(
+    (b) => ({ currency: b.currency, total: b.total })
+  );
   const budgetTarget = budgets.reduce((sum, b) => sum + b.targetAmount, 0);
   const budgetRealisasi = budgets.reduce((sum, b) => sum + b.realisasi, 0);
   const overBudgetCategories = budgets
@@ -54,7 +52,7 @@ export default async function DashboardPage() {
       <DashboardView
         displayName={membership.display_name}
         familyName={membership.family_name}
-        totalBalance={totalBalance}
+        balances={balances}
         accountsCount={accounts.length}
         totalIncome={summary.totalIncome}
         totalExpense={summary.totalExpense}
