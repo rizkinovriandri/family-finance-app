@@ -37,8 +37,8 @@ export function DonutChart({
         className="relative w-28 h-28 rounded-full shrink-0"
         style={{ background: gradient }}
       >
-        <div className="absolute inset-2.5 rounded-full bg-bg-surface flex flex-col items-center justify-center text-center px-1">
-          <span className="text-base font-bold text-text-primary leading-tight">
+        <div className="absolute inset-3 rounded-full bg-bg-surface flex flex-col items-center justify-center text-center px-1.5">
+          <span className="text-sm font-bold text-text-primary leading-tight">
             {formatRupiah(total)}
           </span>
           {budgetTarget ? (
