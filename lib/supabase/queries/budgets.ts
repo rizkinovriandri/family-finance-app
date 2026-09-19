@@ -10,6 +10,8 @@ export interface BudgetWithRealization {
   categoryId: string;
   categoryName: string;
   categoryIcon: string | null;
+  subcategoryId: string | null;
+  subcategoryName: string | null;
   targetAmount: number;
   realisasi: number;
   percentage: number;
@@ -17,7 +19,7 @@ export interface BudgetWithRealization {
   notes: string | null;
 }
 
-function statusFor(percentage: number): BudgetWithRealization["status"] {
+export function statusFor(percentage: number): BudgetWithRealization["status"] {
   if (percentage > 100) return "Melebihi";
   if (percentage >= 80) return "Waspada";
   return "Aman";
@@ -35,6 +37,7 @@ export async function listBudgetsForMonth(
     { data: budgets, error: budgetError },
     { data: realizations, error: realizationError },
     { data: categories, error: catError },
+    { data: subcategories, error: subError },
   ] = await Promise.all([
     supabase
       .from("budgets")
@@ -47,14 +50,17 @@ export async function listBudgetsForMonth(
       .eq("family_id", familyId)
       .eq("month", month),
     supabase.from("categories").select("id, name, icon"),
+    supabase.from("subcategories").select("id, name").eq("family_id", familyId),
   ]);
 
   if (budgetError) throw budgetError;
   if (realizationError) throw realizationError;
   if (catError) throw catError;
+  if (subError) throw subError;
 
   const realisasiByBudgetId = new Map(realizations.map((r) => [r.budget_id, r.realisasi]));
   const categoryById = new Map(categories.map((c) => [c.id, c]));
+  const subcategoryNameById = new Map(subcategories.map((s) => [s.id, s.name]));
 
   return budgets
     .map((b) => {
@@ -66,6 +72,10 @@ export async function listBudgetsForMonth(
         categoryId: b.category_id,
         categoryName: categoryById.get(b.category_id)?.name ?? "Lainnya",
         categoryIcon: categoryById.get(b.category_id)?.icon ?? null,
+        subcategoryId: b.subcategory_id,
+        subcategoryName: b.subcategory_id
+          ? (subcategoryNameById.get(b.subcategory_id) ?? null)
+          : null,
         targetAmount: b.target_amount,
         realisasi,
         percentage,
@@ -87,6 +97,7 @@ export async function createBudget(
     family_id: familyId,
     month: toLocalISODate(getCycleStart(monthDate, monthStartDay)),
     category_id: input.category_id,
+    subcategory_id: input.subcategory_id || null,
     target_amount: input.target_amount,
     notes: input.notes || null,
   });
@@ -96,11 +107,15 @@ export async function createBudget(
 export async function updateBudget(
   supabase: Client,
   budgetId: string,
-  input: Pick<BudgetFormValues, "target_amount" | "notes">
+  input: Pick<BudgetFormValues, "target_amount" | "notes" | "subcategory_id">
 ) {
   const { error } = await supabase
     .from("budgets")
-    .update({ target_amount: input.target_amount, notes: input.notes || null })
+    .update({
+      target_amount: input.target_amount,
+      notes: input.notes || null,
+      subcategory_id: input.subcategory_id || null,
+    })
     .eq("id", budgetId);
   if (error) throw error;
 }
@@ -115,10 +130,16 @@ export interface DuplicateBudgetsResult {
   skipped: number;
 }
 
+// Kunci unik budget sekarang kategori+subkategori (subkategori null = budget
+// level kategori), bukan cuma kategori — lihat migrasi 0014_subcategories.
+function budgetKey(categoryId: string, subcategoryId: string | null) {
+  return `${categoryId}:${subcategoryId ?? ""}`;
+}
+
 // Duplikasi semua anggaran bulan berjalan ke bulan berikutnya (target_amount
 // & notes disalin, realisasi otomatis 0 karena belum ada transaksi di bulan
-// itu). Kategori yang sudah punya anggaran di bulan berikutnya dilewati
-// (unik per family_id+month+category_id).
+// itu). Kategori/sub kategori yang sudah punya anggaran di bulan berikutnya
+// dilewati.
 export async function duplicateBudgetsToNextMonth(
   supabase: Client,
   familyId: string,
@@ -136,12 +157,12 @@ export async function duplicateBudgetsToNextMonth(
   ] = await Promise.all([
     supabase
       .from("budgets")
-      .select("category_id, target_amount, notes")
+      .select("category_id, subcategory_id, target_amount, notes")
       .eq("family_id", familyId)
       .eq("month", currentMonth),
     supabase
       .from("budgets")
-      .select("category_id")
+      .select("category_id, subcategory_id")
       .eq("family_id", familyId)
       .eq("month", nextMonth),
   ]);
@@ -149,9 +170,11 @@ export async function duplicateBudgetsToNextMonth(
   if (currentError) throw currentError;
   if (nextError) throw nextError;
 
-  const existingNextCategoryIds = new Set(nextBudgets.map((b) => b.category_id));
+  const existingNextKeys = new Set(
+    nextBudgets.map((b) => budgetKey(b.category_id, b.subcategory_id))
+  );
   const toInsert = currentBudgets.filter(
-    (b) => !existingNextCategoryIds.has(b.category_id)
+    (b) => !existingNextKeys.has(budgetKey(b.category_id, b.subcategory_id))
   );
 
   if (toInsert.length === 0) {
@@ -163,6 +186,7 @@ export async function duplicateBudgetsToNextMonth(
       family_id: familyId,
       month: nextMonth,
       category_id: b.category_id,
+      subcategory_id: b.subcategory_id,
       target_amount: b.target_amount,
       notes: b.notes,
     }))

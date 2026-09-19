@@ -15,8 +15,10 @@ import {
 import { PAYMENT_METHODS } from "@/lib/constants/enums";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { CategoryPicker } from "@/components/CategoryPicker";
+import { SubcategoryPicker } from "@/components/SubcategoryPicker";
 import { Field } from "@/components/FormField";
 import type { Category } from "@/lib/supabase/queries/categories";
+import type { Subcategory } from "@/lib/supabase/queries/subcategories";
 import { toLocalISODate } from "@/lib/utils/date";
 
 type Account = { id: string; name: string };
@@ -32,6 +34,7 @@ export function TransactionForm({
   accounts,
   members,
   categories,
+  subcategories,
   defaultMemberId,
   defaultAccountId,
   editing,
@@ -42,6 +45,7 @@ export function TransactionForm({
   accounts: Account[];
   members: Member[];
   categories: Category[];
+  subcategories: Subcategory[];
   defaultMemberId: string;
   defaultAccountId?: string;
   editing?: TransactionWithDetails | null;
@@ -53,6 +57,7 @@ export function TransactionForm({
   );
   const [amount, setAmount] = useState(editing?.amount ?? 0);
   const [categoryId, setCategoryId] = useState(editing?.categoryId ?? "");
+  const [subcategoryId, setSubcategoryId] = useState(editing?.subcategoryId ?? "");
   const [accountId, setAccountId] = useState(
     editing?.accountId ?? defaultAccountId ?? accounts[0]?.id ?? ""
   );
@@ -77,6 +82,12 @@ export function TransactionForm({
   const relevantCategories = categories.filter((c) =>
     txType === "Pemasukan" ? c.type === "income" : c.type === "expense"
   );
+  const relevantSubcategories = subcategories.filter((s) => s.categoryId === categoryId);
+
+  function handleCategoryChange(id: string) {
+    setCategoryId(id);
+    setSubcategoryId("");
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -116,6 +127,7 @@ export function TransactionForm({
       type: txType,
       amount,
       category_id: categoryId,
+      subcategory_id: subcategoryId,
       account_id: accountId,
       family_member_id: memberId,
       payment_method: paymentMethod,
@@ -207,9 +219,19 @@ export function TransactionForm({
             <CategoryPicker
               categories={relevantCategories}
               value={categoryId}
-              onChange={setCategoryId}
+              onChange={handleCategoryChange}
             />
           </Field>
+
+          {relevantSubcategories.length > 0 && (
+            <Field label="Sub kategori (opsional)">
+              <SubcategoryPicker
+                subcategories={relevantSubcategories}
+                value={subcategoryId}
+                onChange={setSubcategoryId}
+              />
+            </Field>
+          )}
 
           <Field label="Akun" error={fieldErrors.account_id}>
             <select

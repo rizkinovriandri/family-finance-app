@@ -178,6 +178,7 @@ export interface Database {
           date: string;
           type: TransactionType;
           category_id: string;
+          subcategory_id: string | null;
           account_id: string;
           description: string | null;
           amount: number;
@@ -195,6 +196,7 @@ export interface Database {
           date: string;
           type: TransactionType;
           category_id: string;
+          subcategory_id?: string | null;
           account_id: string;
           description?: string | null;
           amount: number;
@@ -209,12 +211,31 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["transactions"]["Insert"]>;
         Relationships: [];
       };
+      subcategories: {
+        Row: {
+          id: string;
+          family_id: string;
+          category_id: string;
+          name: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          family_id: string;
+          category_id: string;
+          name: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["subcategories"]["Insert"]>;
+        Relationships: [];
+      };
       budgets: {
         Row: {
           id: string;
           family_id: string;
           month: string;
           category_id: string;
+          subcategory_id: string | null;
           target_amount: number;
           notes: string | null;
         };
@@ -223,6 +244,7 @@ export interface Database {
           family_id: string;
           month: string;
           category_id: string;
+          subcategory_id?: string | null;
           target_amount: number;
           notes?: string | null;
         };
@@ -293,6 +315,7 @@ export interface Database {
           family_id: string;
           month: string;
           category_id: string;
+          subcategory_id: string | null;
           target_amount: number;
           realisasi: number;
         };

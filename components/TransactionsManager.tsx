@@ -11,6 +11,7 @@ import { TransactionForm } from "@/components/TransactionForm";
 import { Modal } from "@/components/Modal";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import type { Category } from "@/lib/supabase/queries/categories";
+import type { Subcategory } from "@/lib/supabase/queries/subcategories";
 import Link from "next/link";
 import { ChevronLeftIcon } from "@/components/icons";
 import { useRealtimeTable } from "@/lib/hooks/useRealtimeTable";
@@ -64,6 +65,7 @@ export function TransactionsManager({
   accounts,
   members,
   categories,
+  subcategories,
   defaultMemberId,
   initialTransactions,
   filterAccountId,
@@ -75,6 +77,7 @@ export function TransactionsManager({
   accounts: Account[];
   members: Member[];
   categories: Category[];
+  subcategories: Subcategory[];
   defaultMemberId: string;
   initialTransactions: TransactionWithDetails[];
   filterAccountId?: string;
@@ -205,6 +208,7 @@ export function TransactionsManager({
           accounts={accounts}
           members={members}
           categories={categories}
+          subcategories={subcategories}
           defaultMemberId={defaultMemberId}
           defaultAccountId={defaultAccountId}
           editing={editing}
@@ -307,9 +311,13 @@ export function TransactionsManager({
                       </div>
                     </div>
                     <p className="text-xs text-text-secondary truncate mt-0.5">
-                      {filterAccountId
-                        ? `${t.categoryName} · ${t.memberName}`
-                        : `${t.categoryName} · ${t.accountName} · ${t.memberName}`}
+                      {[
+                        t.subcategoryName ? `${t.categoryName} - ${t.subcategoryName}` : t.categoryName,
+                        !filterAccountId && t.accountName,
+                        t.memberName,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </p>
 
                     <div className="flex gap-3 mt-1">

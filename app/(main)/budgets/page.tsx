@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getMyFamilyMembership } from "@/lib/supabase/queries/families";
 import { listCategories } from "@/lib/supabase/queries/categories";
+import { listSubcategories } from "@/lib/supabase/queries/subcategories";
 import { listBudgetsForMonth } from "@/lib/supabase/queries/budgets";
 import { BudgetsManager } from "@/components/BudgetsManager";
 import { getCycleStart, toLocalISODate } from "@/lib/utils/date";
@@ -16,8 +17,9 @@ export default async function BudgetsPage() {
 
   const monthStart = getCycleStart(new Date(), membership.month_start_day);
 
-  const [categories, budgets] = await Promise.all([
+  const [categories, subcategories, budgets] = await Promise.all([
     listCategories(supabase),
+    listSubcategories(supabase, membership.family_id),
     listBudgetsForMonth(supabase, membership.family_id, monthStart, membership.month_start_day),
   ]);
 
@@ -27,6 +29,7 @@ export default async function BudgetsPage() {
         familyId={membership.family_id}
         monthStartDay={membership.month_start_day}
         categories={categories}
+        subcategories={subcategories}
         initialBudgets={budgets}
         initialMonth={toLocalISODate(monthStart)}
       />

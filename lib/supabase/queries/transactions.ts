@@ -160,6 +160,8 @@ export interface TransactionWithDetails {
   categoryId: string;
   categoryName: string;
   categoryIcon: string | null;
+  subcategoryId: string | null;
+  subcategoryName: string | null;
   accountId: string;
   accountName: string;
   memberName: string;
@@ -173,6 +175,7 @@ export async function listTransactions(
   const [
     { data: transactions, error },
     { data: categories, error: catError },
+    { data: subcategories, error: subError },
     { data: accounts, error: accError },
     { data: members, error: memError },
   ] = await Promise.all([
@@ -183,16 +186,19 @@ export async function listTransactions(
       .order("date", { ascending: false })
       .order("created_at", { ascending: false }),
     supabase.from("categories").select("id, name, icon"),
+    supabase.from("subcategories").select("id, name").eq("family_id", familyId),
     supabase.from("accounts").select("id, name").eq("family_id", familyId),
     supabase.from("family_members").select("id, display_name").eq("family_id", familyId),
   ]);
 
   if (error) throw error;
   if (catError) throw catError;
+  if (subError) throw subError;
   if (accError) throw accError;
   if (memError) throw memError;
 
   const categoryById = new Map(categories.map((c) => [c.id, c]));
+  const subcategoryNameById = new Map(subcategories.map((s) => [s.id, s.name]));
   const accountNameById = new Map(accounts.map((a) => [a.id, a.name]));
   const memberNameById = new Map(members.map((m) => [m.id, m.display_name]));
 
@@ -206,6 +212,10 @@ export async function listTransactions(
     categoryId: t.category_id,
     categoryName: categoryById.get(t.category_id)?.name ?? "Lainnya",
     categoryIcon: categoryById.get(t.category_id)?.icon ?? null,
+    subcategoryId: t.subcategory_id,
+    subcategoryName: t.subcategory_id
+      ? (subcategoryNameById.get(t.subcategory_id) ?? null)
+      : null,
     accountId: t.account_id,
     accountName: accountNameById.get(t.account_id) ?? "-",
     memberName: memberNameById.get(t.family_member_id) ?? "-",
@@ -228,6 +238,7 @@ export async function createTransaction(
     date: input.date,
     type: input.type,
     category_id: input.category_id,
+    subcategory_id: input.subcategory_id || null,
     account_id: input.account_id,
     description: input.description || null,
     amount: input.amount,
@@ -250,6 +261,7 @@ export async function updateTransaction(
       date: input.date,
       type: input.type,
       category_id: input.category_id,
+      subcategory_id: input.subcategory_id || null,
       account_id: input.account_id,
       description: input.description || null,
       amount: input.amount,

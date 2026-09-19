@@ -85,6 +85,18 @@ Relasi user ↔ keluarga. Semua member punya hak akses setara (tidak ada role ad
 | name | text | |
 | type | enum | income, expense, transfer |
 | is_default | boolean | true untuk kategori bawaan (lihat Bagian 5) |
+| family_id | uuid FK, nullable | null untuk kategori bawaan (global), diisi untuk kategori custom per keluarga |
+| icon | text | key ikon dari `lib/constants/category-icons.tsx` |
+
+### `subcategories`
+Rincian opsional di bawah kategori (mis. Transportasi → Bensin, Servis Rutin, Perbaikan) — dikelola di halaman `/categories` (expand tiap kategori). Selalu custom per keluarga, tidak ada versi bawaan/global seperti `categories.is_default`.
+| Kolom | Tipe | Keterangan |
+|---|---|---|
+| id | uuid PK | |
+| family_id | uuid FK → families | |
+| category_id | uuid FK → categories | |
+| name | text | |
+| created_at | timestamptz | |
 
 ### `transactions` (dari sheet "Transaksi")
 | Kolom | Tipe | Keterangan |
@@ -94,6 +106,7 @@ Relasi user ↔ keluarga. Semua member punya hak akses setara (tidak ada role ad
 | date | date | |
 | type | enum | Pemasukan, Pengeluaran, Transfer Antar Akun |
 | category_id | uuid FK → categories | |
+| subcategory_id | uuid FK → subcategories, nullable | opsional, rincian di bawah kategori |
 | account_id | uuid FK → accounts | |
 | description | text | |
 | amount | numeric | **selalu positif** — arah dana ditentukan kolom `type`, bukan tanda minus |
@@ -111,10 +124,11 @@ Relasi user ↔ keluarga. Semua member punya hak akses setara (tidak ada role ad
 | family_id | uuid FK | |
 | month | date | disimpan sebagai tanggal 1 di bulan tsb, mis. 2026-09-01 |
 | category_id | uuid FK → categories | |
+| subcategory_id | uuid FK → subcategories, nullable | null = budget level kategori (roll-up semua sub kategori); diisi = budget spesifik satu sub kategori |
 | target_amount | numeric | |
 | notes | text | |
 
-> `realisasi`, `selisih`, `% terpakai`, dan `status` (Aman/Waspada/Melebihi) **tidak disimpan** — dihitung via query dari `transactions` yang match `category_id` + `month`, sama seperti formula otomatis di Excel.
+> `realisasi`, `selisih`, `% terpakai`, dan `status` (Aman/Waspada/Melebihi) **tidak disimpan** — dihitung via query dari `transactions` yang match `category_id` + `month` (dan `subcategory_id` kalau budget-nya level sub kategori), sama seperti formula otomatis di Excel. Unik per `family_id + month + category_id + subcategory_id` (budget level kategori dan tiap budget sub kategori di kategori yang sama bisa hidup berdampingan).
 
 ### `investment_holdings` (Fase 2 — dari sheet "Portofolio Investasi")
 Detail instrumen investasi yang disimpan di dalam akun bertipe Investasi (tab "Investasi" di halaman Akun). Satu akun investasi bisa berisi banyak holding, dikelompokkan ke 4 kategori.
@@ -190,7 +204,7 @@ Aturan ini **wajib diikuti** saat implementasi logic transaksi, karena jadi acua
 - [x] Auth (register/login, multi-user per keluarga) — termasuk kode undangan keluarga & reset password
 - [x] Manajemen akun (CRUD `accounts`) — prasyarat untuk transaksi
 - [x] CRUD transaksi (income/expense/transfer, sesuai aturan Bagian 5) — termasuk riwayat transaksi per akun
-- [x] Budget bulanan per kategori (target + realisasi otomatis) — termasuk duplikasi anggaran ke bulan berikutnya
+- [x] Budget bulanan per kategori (target + realisasi otomatis) — termasuk duplikasi anggaran ke bulan berikutnya, dan rincian budget per sub kategori (`subcategories`, dikelola di halaman Kelola Kategori)
 - [x] Dashboard: total saldo semua akun, total pemasukan/pengeluaran, saldo bersih, realisasi anggaran vs target, kategori yang melebihi budget, grafik tren bulanan
 - [x] PWA (installable, "Add to Home Screen") — manifest route, icons, service worker dengan offline fallback, install-hint UI, metadata iOS
 - [x] Realtime sync antar anggota keluarga (Supabase Realtime) — mencakup accounts, transactions, budgets, categories, dan investment_holdings

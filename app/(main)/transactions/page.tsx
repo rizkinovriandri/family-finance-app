@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getMyFamilyMembership, listFamilyMembers } from "@/lib/supabase/queries/families";
 import { listAccounts } from "@/lib/supabase/queries/accounts";
 import { listCategories } from "@/lib/supabase/queries/categories";
+import { listSubcategories } from "@/lib/supabase/queries/subcategories";
 import { listTransactions } from "@/lib/supabase/queries/transactions";
 import { TransactionsManager } from "@/components/TransactionsManager";
 
@@ -14,10 +15,11 @@ export default async function TransactionsPage() {
     redirect("/dashboard");
   }
 
-  const [accounts, members, categories, transactions] = await Promise.all([
+  const [accounts, members, categories, subcategories, transactions] = await Promise.all([
     listAccounts(supabase, membership.family_id),
     listFamilyMembers(supabase, membership.family_id),
     listCategories(supabase),
+    listSubcategories(supabase, membership.family_id),
     listTransactions(supabase, membership.family_id),
   ]);
 
@@ -28,6 +30,7 @@ export default async function TransactionsPage() {
         accounts={accounts}
         members={members}
         categories={categories}
+        subcategories={subcategories}
         defaultMemberId={membership.id}
         initialTransactions={transactions}
       />

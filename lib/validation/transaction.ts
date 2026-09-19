@@ -5,6 +5,7 @@ export const transactionSchema = z.object({
   type: z.enum(["Pemasukan", "Pengeluaran"]),
   amount: z.coerce.number().positive("Jumlah harus lebih dari 0"),
   category_id: z.string().min(1, "Pilih kategori"),
+  subcategory_id: z.string().optional(),
   account_id: z.string().min(1, "Pilih akun"),
   family_member_id: z.string().min(1, "Pilih anggota keluarga"),
   payment_method: z.enum(PAYMENT_METHODS),
