@@ -5,9 +5,11 @@ import { createClient } from "@/lib/supabase/client";
 import { getReportSummary, type ReportSummary } from "@/lib/supabase/queries/reports";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import { CategoryFilterDropdown } from "@/components/CategoryFilterDropdown";
+import { NetWorthView } from "@/components/NetWorthView";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
 import { useRealtimeTable } from "@/lib/hooks/useRealtimeTable";
 import type { Category } from "@/lib/supabase/queries/categories";
+import type { AccountWithBalance } from "@/lib/supabase/queries/accounts";
 import { formatCycleLabel, shiftCycle } from "@/lib/utils/date";
 import { formatCompactRupiah, getYAxisTicks } from "@/lib/utils/chart";
 
@@ -35,12 +37,16 @@ export function ReportsView({
   initialSummary,
   initialMonth,
   categories,
+  initialAccounts,
+  initialPortfolioValueByAccount,
 }: {
   familyId: string;
   monthStartDay: number;
   initialSummary: ReportSummary;
   initialMonth: string;
   categories: Category[];
+  initialAccounts: AccountWithBalance[];
+  initialPortfolioValueByAccount: Record<string, number>;
 }) {
   const [tab, setTab] = useState<Tab>("Pengeluaran");
   const [monthDate, setMonthDate] = useState(new Date(initialMonth + "T00:00:00"));
@@ -111,12 +117,11 @@ export function ReportsView({
       </div>
 
       {tab === "Net Worth" ? (
-        <div className="rounded-2xl bg-bg-surface border border-border-subtle p-6 text-center">
-          <p className="text-sm text-text-secondary">
-            Kekayaan bersih (net worth) belum tersedia — direncanakan hadir di fase
-            pengembangan berikutnya.
-          </p>
-        </div>
+        <NetWorthView
+          familyId={familyId}
+          initialAccounts={initialAccounts}
+          initialPortfolioValueByAccount={initialPortfolioValueByAccount}
+        />
       ) : (
         <>
           <div className="flex items-center justify-between rounded-xl bg-bg-surface border border-border-subtle px-3 py-2">

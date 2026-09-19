@@ -35,6 +35,7 @@ import {
 import { holdingSchema } from "@/lib/validation/investment";
 import { createHolding, getPortfolioValueByAccount } from "@/lib/supabase/queries/investments";
 import { refreshStockPrices } from "@/lib/utils/refreshStockPrices";
+import { computeNetWorth } from "@/lib/utils/networth";
 import type { InvestmentCategory } from "@/lib/types/database";
 
 type Member = { id: string; display_name: string };
@@ -71,13 +72,6 @@ function formatCurrency(amount: number, currency: string) {
   }).format(amount);
 }
 
-interface NetWorthBreakdown {
-  currency: string;
-  tabungan: number;
-  investasi: number;
-  total: number;
-}
-
 export function AccountsManager({
   familyId,
   members,
@@ -108,37 +102,23 @@ export function AccountsManager({
 
   // Net worth per mata uang — dipisah karena tidak ada konversi kurs di app
   // ini, jadi Rp dan mis. USD tidak bisa asal dijumlah jadi satu angka.
-  // Akun berstatus "Ditutup" tidak dihitung (bukan kekayaan aktif lagi).
-  const netWorthByCurrency = useMemo<NetWorthBreakdown[]>(() => {
-    const map = new Map<string, { tabungan: number; investasi: number }>();
-    for (const a of accounts) {
-      if (a.status === "Ditutup") continue;
-      const isInvestment = isInvestmentType(a.account_type);
-      const value = isInvestment ? (portfolioValueByAccount[a.id] ?? 0) : a.current_balance;
-      const entry = map.get(a.currency) ?? { tabungan: 0, investasi: 0 };
-      if (isInvestment) entry.investasi += value;
-      else entry.tabungan += value;
-      map.set(a.currency, entry);
-    }
-    return Array.from(map.entries())
-      .map(([currency, v]) => ({
-        currency,
-        tabungan: v.tabungan,
-        investasi: v.investasi,
-        total: v.tabungan + v.investasi,
-      }))
-      .sort((a, b) => (a.currency === "IDR" ? -1 : b.currency === "IDR" ? 1 : 0));
-  }, [accounts, portfolioValueByAccount]);
+  const netWorthByCurrency = useMemo(
+    () => computeNetWorth(accounts, portfolioValueByAccount),
+    [accounts, portfolioValueByAccount]
+  );
 
   const primaryNetWorth = netWorthByCurrency.find((c) => c.currency === "IDR") ?? netWorthByCurrency[0];
   const otherNetWorth = netWorthByCurrency.filter((c) => c !== primaryNetWorth);
+  // Persentase dihitung dari total aset kotor (bukan net worth) supaya tetap
+  // masuk akal 0-100% walau ada liabilitas yang mengurangi net worth.
+  const grossAset = primaryNetWorth ? primaryNetWorth.tabungan + primaryNetWorth.investasi : 0;
   const tabunganPct =
-    primaryNetWorth && primaryNetWorth.total > 0
-      ? Math.round((primaryNetWorth.tabungan / primaryNetWorth.total) * 100)
+    primaryNetWorth && grossAset > 0
+      ? Math.round((primaryNetWorth.tabungan / grossAset) * 100)
       : 0;
   const investasiPct =
-    primaryNetWorth && primaryNetWorth.total > 0
-      ? Math.round((primaryNetWorth.investasi / primaryNetWorth.total) * 100)
+    primaryNetWorth && grossAset > 0
+      ? Math.round((primaryNetWorth.investasi / grossAset) * 100)
       : 0;
 
   const filteredAccounts = accounts.filter(
@@ -300,7 +280,7 @@ export function AccountsManager({
             {formatCurrency(primaryNetWorth.total, primaryNetWorth.currency)}
           </p>
 
-          {primaryNetWorth.total > 0 && (
+          {grossAset > 0 && (
             <>
               <div className="h-1.5 rounded-full bg-bg-page mt-3 overflow-hidden flex">
                 <div className="h-full bg-accent" style={{ width: `${tabunganPct}%` }} />
@@ -323,6 +303,15 @@ export function AccountsManager({
                 </span>
               </div>
             </>
+          )}
+
+          {primaryNetWorth.liabilitas > 0 && (
+            <div className="flex items-center justify-between mt-2 text-xs">
+              <span className="text-text-secondary">Liabilitas (Utang/Kartu Kredit)</span>
+              <span className="text-danger font-medium">
+                -{formatCurrency(primaryNetWorth.liabilitas, primaryNetWorth.currency)}
+              </span>
+            </div>
           )}
 
           {otherNetWorth.length > 0 && (

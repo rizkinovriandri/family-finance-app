@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getMyFamilyMembership } from "@/lib/supabase/queries/families";
 import { getReportSummary } from "@/lib/supabase/queries/reports";
 import { listCategories } from "@/lib/supabase/queries/categories";
+import { listAccounts } from "@/lib/supabase/queries/accounts";
+import { getPortfolioValueByAccount } from "@/lib/supabase/queries/investments";
 import { ReportsView } from "@/components/ReportsView";
 import { getCycleStart, toLocalISODate } from "@/lib/utils/date";
 
@@ -15,7 +17,7 @@ export default async function ReportsPage() {
   }
 
   const monthStart = getCycleStart(new Date(), membership.month_start_day);
-  const [summary, categories] = await Promise.all([
+  const [summary, categories, accounts, portfolioValueByAccount] = await Promise.all([
     getReportSummary(
       supabase,
       membership.family_id,
@@ -24,6 +26,8 @@ export default async function ReportsPage() {
       "Pengeluaran"
     ),
     listCategories(supabase),
+    listAccounts(supabase, membership.family_id),
+    getPortfolioValueByAccount(supabase, membership.family_id),
   ]);
 
   return (
@@ -34,6 +38,8 @@ export default async function ReportsPage() {
         initialSummary={summary}
         initialMonth={toLocalISODate(monthStart)}
         categories={categories}
+        initialAccounts={accounts}
+        initialPortfolioValueByAccount={Object.fromEntries(portfolioValueByAccount)}
       />
     </div>
   );

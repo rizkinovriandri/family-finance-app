@@ -26,6 +26,14 @@ export function isInvestmentAccountType(accountType: string) {
   return accountType.startsWith("Investasi");
 }
 
+// Akun bertipe ini adalah utang, bukan aset — dikurangkan (bukan
+// dijumlahkan) saat menghitung kekayaan bersih (net worth).
+const LIABILITY_ACCOUNT_TYPES = new Set(["Kartu Kredit", "Pinjaman/Utang"]);
+
+export function isLiabilityAccountType(accountType: string) {
+  return LIABILITY_ACCOUNT_TYPES.has(accountType);
+}
+
 export const INVESTMENT_CATEGORIES = [
   { value: "reksadana", label: "Reksadana" },
   { value: "obligasi_sukuk", label: "Obligasi/Sukuk" },
