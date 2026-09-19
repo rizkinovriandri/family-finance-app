@@ -79,6 +79,7 @@ export interface Database {
           family_id: string;
           user_id: string;
           display_name: string;
+          avatar_url: string | null;
           created_at: string;
         };
         Insert: {
@@ -86,6 +87,7 @@ export interface Database {
           family_id: string;
           user_id: string;
           display_name: string;
+          avatar_url?: string | null;
           created_at?: string;
         };
         Update: {
@@ -93,6 +95,7 @@ export interface Database {
           family_id?: string;
           user_id?: string;
           display_name?: string;
+          avatar_url?: string | null;
           created_at?: string;
         };
         Relationships: [
