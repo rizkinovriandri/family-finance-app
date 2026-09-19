@@ -34,6 +34,12 @@ export function isLiabilityAccountType(accountType: string) {
   return LIABILITY_ACCOUNT_TYPES.has(accountType);
 }
 
+// Kategori transaksi khusus dari fitur "Sesuaikan Saldo" (bukan pemasukan/
+// pengeluaran sungguhan) — dikecualikan dari semua chart & laporan supaya
+// tidak mendistorsi angka Pemasukan/Pengeluaran bulanan, sama seperti
+// transfer antar akun.
+export const BALANCE_ADJUSTMENT_CATEGORY_NAME = "Penyesuaian Saldo";
+
 export const INVESTMENT_CATEGORIES = [
   { value: "reksadana", label: "Reksadana" },
   { value: "obligasi_sukuk", label: "Obligasi/Sukuk" },

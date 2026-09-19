@@ -1,8 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, TransactionType } from "@/lib/types/database";
-import { getCategoryStyle } from "@/lib/constants/enums";
+import { BALANCE_ADJUSTMENT_CATEGORY_NAME, getCategoryStyle } from "@/lib/constants/enums";
 import { getCycleRange, getCycleStart, shiftCycle, toLocalISODate } from "@/lib/utils/date";
 import type {
+  BalanceAdjustmentFormValues,
   TransactionFormValues,
   TransferFormValues,
 } from "@/lib/validation/transaction";
@@ -46,16 +47,19 @@ export async function getMonthlySummary(
   if (catError) throw catError;
 
   const categoryNameById = new Map(categories.map((c) => [c.id, c.name]));
+  const adjustmentCategoryIds = new Set(
+    categories.filter((c) => c.name === BALANCE_ADJUSTMENT_CATEGORY_NAME).map((c) => c.id)
+  );
 
   let totalIncome = 0;
   let totalExpense = 0;
   const expenseByCategory = new Map<string, number>();
 
   for (const t of transactions) {
-    // Transfer antar akun (2 baris berpasangan) bukan pemasukan/pengeluaran
-    // asli — cuma perpindahan uang antar akun sendiri, jadi tidak dihitung
-    // di ringkasan bulanan.
+    // Transfer antar akun (2 baris berpasangan) dan penyesuaian saldo bukan
+    // pemasukan/pengeluaran sungguhan — tidak dihitung di ringkasan bulanan.
     if (t.transfer_pair_id) continue;
+    if (adjustmentCategoryIds.has(t.category_id)) continue;
 
     if (t.type === "Pemasukan") {
       totalIncome += t.amount;
@@ -100,14 +104,22 @@ export async function getMonthlyTrend(
   const rangeStart = shiftCycle(currentCycleStart, -(monthsCount - 1));
   const rangeEndExclusive = shiftCycle(currentCycleStart, 1);
 
-  const { data, error } = await supabase
-    .from("transactions")
-    .select("date, type, amount, transfer_pair_id")
-    .eq("family_id", familyId)
-    .gte("date", toLocalISODate(rangeStart))
-    .lt("date", toLocalISODate(rangeEndExclusive));
+  const [{ data, error }, { data: categories, error: catError }] = await Promise.all([
+    supabase
+      .from("transactions")
+      .select("date, type, amount, category_id, transfer_pair_id")
+      .eq("family_id", familyId)
+      .gte("date", toLocalISODate(rangeStart))
+      .lt("date", toLocalISODate(rangeEndExclusive)),
+    supabase.from("categories").select("id, name"),
+  ]);
 
   if (error) throw error;
+  if (catError) throw catError;
+
+  const adjustmentCategoryIds = new Set(
+    categories.filter((c) => c.name === BALANCE_ADJUSTMENT_CATEGORY_NAME).map((c) => c.id)
+  );
 
   const buckets = Array.from({ length: monthsCount }, (_, i) => ({
     cycleStart: shiftCycle(rangeStart, i),
@@ -116,9 +128,10 @@ export async function getMonthlyTrend(
   }));
 
   for (const t of data) {
-    // Transfer antar akun bukan pemasukan/pengeluaran asli — lihat catatan
-    // di getMonthlySummary.
+    // Transfer antar akun dan penyesuaian saldo bukan pemasukan/pengeluaran
+    // sungguhan — lihat catatan di getMonthlySummary.
     if (t.transfer_pair_id) continue;
+    if (adjustmentCategoryIds.has(t.category_id)) continue;
 
     const txCycleStart = getCycleStart(new Date(t.date + "T00:00:00"), monthStartDay);
     const bucketIndex =
@@ -329,4 +342,57 @@ export async function createTransfer(
     .update({ transfer_pair_id: inId })
     .eq("id", outId);
   if (linkError) throw linkError;
+}
+
+// Koreksi saldo akun TANPA mengedit opening_balance (yang gampang bikin
+// bingung — lihat riwayat perbaikan form Ubah Akun). Selisih antara saldo
+// saat ini dan saldo yang seharusnya dicatat sebagai transaksi normal
+// (Pemasukan kalau kurang, Pengeluaran kalau lebih), pakai kategori khusus
+// "Penyesuaian Saldo" — konsisten dengan aturan CLAUDE.md Bagian 5 bahwa
+// saldo akun selalu turunan dari akumulasi transaksi.
+export async function createBalanceAdjustment(
+  supabase: Client,
+  familyId: string,
+  accountId: string,
+  currentBalance: number,
+  input: BalanceAdjustmentFormValues
+) {
+  const diff = input.target_balance - currentBalance;
+  if (diff === 0) {
+    throw new Error("Saldo sudah sesuai — tidak ada penyesuaian yang diperlukan.");
+  }
+  const type: "Pemasukan" | "Pengeluaran" = diff > 0 ? "Pemasukan" : "Pengeluaran";
+  const categoryType = diff > 0 ? "income" : "expense";
+
+  const { data: category, error: catError } = await supabase
+    .from("categories")
+    .select("id")
+    .eq("type", categoryType)
+    .eq("name", BALANCE_ADJUSTMENT_CATEGORY_NAME)
+    .limit(1)
+    .maybeSingle();
+  if (catError) throw catError;
+  if (!category) {
+    throw new Error("Kategori Penyesuaian Saldo tidak ditemukan.");
+  }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Belum login");
+
+  const { error } = await supabase.from("transactions").insert({
+    family_id: familyId,
+    date: input.date,
+    type,
+    category_id: category.id,
+    account_id: accountId,
+    description: "Penyesuaian saldo",
+    amount: Math.abs(diff),
+    family_member_id: input.family_member_id,
+    payment_method: "Lainnya",
+    notes: input.notes || null,
+    created_by: user.id,
+  });
+  if (error) throw error;
 }

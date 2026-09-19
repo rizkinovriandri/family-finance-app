@@ -11,11 +11,17 @@ import {
   updateAccount,
   type AccountWithBalance,
 } from "@/lib/supabase/queries/accounts";
+import { createBalanceAdjustment } from "@/lib/supabase/queries/transactions";
 import { useRealtimeTable } from "@/lib/hooks/useRealtimeTable";
 import {
   accountSchema,
   type AccountFormValues,
 } from "@/lib/validation/account";
+import {
+  balanceAdjustmentSchema,
+  type BalanceAdjustmentFormValues,
+} from "@/lib/validation/transaction";
+import { toLocalISODate } from "@/lib/utils/date";
 import {
   ACCOUNT_TYPES,
   ACCOUNT_STATUSES,
@@ -90,6 +96,7 @@ export function AccountsManager({
   );
   const [tab, setTab] = useState<Tab>("Tabungan");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingCurrentBalance, setEditingCurrentBalance] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<AccountFormValues>(EMPTY_FORM);
   const [holdingName, setHoldingName] = useState("");
@@ -97,6 +104,17 @@ export function AccountsManager({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const [adjustingAccount, setAdjustingAccount] = useState<AccountWithBalance | null>(null);
+  const [adjustForm, setAdjustForm] = useState<BalanceAdjustmentFormValues>({
+    target_balance: 0,
+    family_member_id: "",
+    date: toLocalISODate(new Date()),
+    notes: "",
+  });
+  const [adjustFieldErrors, setAdjustFieldErrors] = useState<Record<string, string>>({});
+  const [adjustSubmitError, setAdjustSubmitError] = useState<string | null>(null);
+  const [adjustLoading, setAdjustLoading] = useState(false);
 
   const memberNameById = new Map(members.map((m) => [m.id, m.display_name]));
 
@@ -162,6 +180,7 @@ export function AccountsManager({
 
   function openCreateForm() {
     setEditingId(null);
+    setEditingCurrentBalance(null);
     setForm({
       ...EMPTY_FORM,
       account_type: tab === "Investasi" ? "Investasi Saham" : "Tabungan",
@@ -175,6 +194,7 @@ export function AccountsManager({
 
   function openEditForm(account: AccountWithBalance) {
     setEditingId(account.id);
+    setEditingCurrentBalance(account.current_balance);
     setForm({
       name: account.name,
       account_type: account.account_type,
@@ -267,6 +287,55 @@ export function AccountsManager({
     const supabase = createClient();
     await deleteAccount(supabase, accountId);
     setAccounts((prev) => prev.filter((a) => a.id !== accountId));
+  }
+
+  function openAdjustForm(account: AccountWithBalance) {
+    setAdjustingAccount(account);
+    setAdjustForm({
+      target_balance: account.current_balance,
+      family_member_id: members[0]?.id ?? "",
+      date: toLocalISODate(new Date()),
+      notes: "",
+    });
+    setAdjustFieldErrors({});
+    setAdjustSubmitError(null);
+  }
+
+  async function handleAdjustSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!adjustingAccount) return;
+
+    const result = balanceAdjustmentSchema.safeParse(adjustForm);
+    if (!result.success) {
+      const errors: Record<string, string> = {};
+      for (const issue of result.error.issues) {
+        errors[String(issue.path[0])] = issue.message;
+      }
+      setAdjustFieldErrors(errors);
+      return;
+    }
+
+    setAdjustFieldErrors({});
+    setAdjustSubmitError(null);
+    setAdjustLoading(true);
+    try {
+      const supabase = createClient();
+      await createBalanceAdjustment(
+        supabase,
+        familyId,
+        adjustingAccount.id,
+        adjustingAccount.current_balance,
+        result.data
+      );
+      await syncAccounts();
+      setAdjustingAccount(null);
+    } catch (err) {
+      setAdjustSubmitError(
+        err instanceof Error ? err.message : "Gagal menyimpan penyesuaian saldo."
+      );
+    } finally {
+      setAdjustLoading(false);
+    }
   }
 
   return (
@@ -419,6 +488,14 @@ export function AccountsManager({
                 >
                   Riwayat
                 </Link>
+                {!isInvestmentType(account.account_type) && (
+                  <button
+                    onClick={() => openAdjustForm(account)}
+                    className="text-xs text-accent"
+                  >
+                    Sesuaikan Saldo
+                  </button>
+                )}
                 <button
                   onClick={() => openEditForm(account)}
                   className="text-xs text-accent"
@@ -567,6 +644,15 @@ export function AccountsManager({
             </Field>
           )}
 
+          {!isInvestmentForm && editingId && editingCurrentBalance !== null && (
+            <div className="rounded-xl bg-bg-page px-3.5 py-2.5 flex items-center justify-between text-sm">
+              <span className="text-text-secondary">Saldo saat ini</span>
+              <span className="text-text-primary font-medium">
+                {formatCurrency(editingCurrentBalance, form.currency)}
+              </span>
+            </div>
+          )}
+
           {!isInvestmentForm && (
             <Field label="Saldo awal" error={fieldErrors.opening_balance}>
               <CurrencyInput
@@ -576,6 +662,11 @@ export function AccountsManager({
                   setForm({ ...form, opening_balance })
                 }
               />
+              <p className="text-xs text-text-muted mt-1.5">
+                {editingId
+                  ? "Saldo sebelum transaksi pertama tercatat — bukan saldo saat ini. Mengubah ini akan ikut mengubah saldo saat ini (di atas), karena saldo saat ini = saldo awal + akumulasi transaksi."
+                  : "Saldo saat akun ini mulai dipakai, sebelum ada transaksi apa pun."}
+              </p>
             </Field>
           )}
 
@@ -641,6 +732,112 @@ export function AccountsManager({
             </button>
           </div>
         </form>
+      </Modal>
+
+      <Modal open={adjustingAccount !== null} onClose={() => setAdjustingAccount(null)}>
+        {adjustingAccount && (
+          <form onSubmit={handleAdjustSubmit} className="flex flex-col gap-3">
+            <h2 className="text-lg font-medium text-text-primary">
+              Sesuaikan Saldo — {adjustingAccount.name}
+            </h2>
+            <p className="text-xs text-text-muted -mt-1">
+              Selisihnya akan dicatat otomatis sebagai transaksi Pemasukan/Pengeluaran
+              berkategori &quot;Penyesuaian Saldo&quot;, bukan mengubah Saldo Awal.
+            </p>
+
+            <div className="rounded-xl bg-bg-page px-3.5 py-2.5 flex items-center justify-between text-sm">
+              <span className="text-text-secondary">Saldo saat ini</span>
+              <span className="text-text-primary font-medium">
+                {formatCurrency(adjustingAccount.current_balance, adjustingAccount.currency)}
+              </span>
+            </div>
+
+            <Field label="Saldo seharusnya" error={adjustFieldErrors.target_balance}>
+              <CurrencyInput
+                value={adjustForm.target_balance}
+                currency={adjustingAccount.currency}
+                onChange={(target_balance) =>
+                  setAdjustForm({ ...adjustForm, target_balance })
+                }
+              />
+            </Field>
+
+            {adjustForm.target_balance !== adjustingAccount.current_balance && (
+              <p
+                className={`text-xs -mt-1 ${
+                  adjustForm.target_balance > adjustingAccount.current_balance
+                    ? "text-success"
+                    : "text-danger"
+                }`}
+              >
+                Akan dicatat sebagai{" "}
+                {adjustForm.target_balance > adjustingAccount.current_balance
+                  ? "Pemasukan"
+                  : "Pengeluaran"}{" "}
+                sebesar{" "}
+                {formatCurrency(
+                  Math.abs(adjustForm.target_balance - adjustingAccount.current_balance),
+                  adjustingAccount.currency
+                )}
+              </p>
+            )}
+
+            <Field label="Tanggal" error={adjustFieldErrors.date}>
+              <input
+                type="date"
+                value={adjustForm.date}
+                onChange={(e) => setAdjustForm({ ...adjustForm, date: e.target.value })}
+                className="input"
+              />
+            </Field>
+
+            <Field label="Dicatat oleh" error={adjustFieldErrors.family_member_id}>
+              <select
+                value={adjustForm.family_member_id}
+                onChange={(e) =>
+                  setAdjustForm({ ...adjustForm, family_member_id: e.target.value })
+                }
+                className="input"
+              >
+                <option value="">-</option>
+                {members.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.display_name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label="Catatan (opsional)" error={adjustFieldErrors.notes}>
+              <textarea
+                value={adjustForm.notes}
+                onChange={(e) => setAdjustForm({ ...adjustForm, notes: e.target.value })}
+                className="input"
+                rows={2}
+                placeholder="mis. Koreksi setelah rekonsiliasi rekening"
+              />
+            </Field>
+
+            {adjustSubmitError && <p className="text-sm text-danger">{adjustSubmitError}</p>}
+
+            <div className="flex gap-3 mt-1">
+              <button
+                type="button"
+                onClick={() => setAdjustingAccount(null)}
+                className="flex-1 rounded-xl border border-border-subtle py-3 text-text-secondary"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                disabled={adjustLoading || adjustForm.target_balance === adjustingAccount.current_balance}
+                className="flex-1 rounded-xl bg-accent py-3 text-white font-medium disabled:opacity-60"
+              >
+                {adjustLoading ? "Menyimpan..." : "Simpan"}
+              </button>
+            </div>
+          </form>
+        )}
       </Modal>
 
       {!showForm && (

@@ -30,3 +30,12 @@ export const transferSchema = z
   });
 
 export type TransferFormValues = z.infer<typeof transferSchema>;
+
+export const balanceAdjustmentSchema = z.object({
+  target_balance: z.coerce.number(),
+  family_member_id: z.string().min(1, "Pilih anggota keluarga"),
+  date: z.string().min(1, "Tanggal wajib diisi"),
+  notes: z.string().trim().optional(),
+});
+
+export type BalanceAdjustmentFormValues = z.infer<typeof balanceAdjustmentSchema>;

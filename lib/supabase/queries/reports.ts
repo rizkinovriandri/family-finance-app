@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, TransactionType } from "@/lib/types/database";
-import { getCategoryStyle } from "@/lib/constants/enums";
+import { BALANCE_ADJUSTMENT_CATEGORY_NAME, getCategoryStyle } from "@/lib/constants/enums";
 import { getCycleRange, getCycleStart, shiftCycle } from "@/lib/utils/date";
 
 type Client = SupabaseClient<Database>;
@@ -54,6 +54,9 @@ export async function getReportSummary(
   if (catError) throw catError;
 
   const categoryById = new Map(categories.map((c) => [c.id, c]));
+  const adjustmentCategoryIds = new Set(
+    categories.filter((c) => c.name === BALANCE_ADJUSTMENT_CATEGORY_NAME).map((c) => c.id)
+  );
 
   let total = 0;
   let previousTotal = 0;
@@ -66,9 +69,10 @@ export async function getReportSummary(
   const msPerDay = 24 * 60 * 60 * 1000;
 
   for (const t of transactions) {
-    // Transfer antar akun bukan pemasukan/pengeluaran asli — lihat catatan
-    // serupa di getMonthlySummary.
+    // Transfer antar akun dan penyesuaian saldo bukan pemasukan/pengeluaran
+    // sungguhan — lihat catatan serupa di getMonthlySummary.
     if (t.transfer_pair_id) continue;
+    if (adjustmentCategoryIds.has(t.category_id)) continue;
     if (t.type !== type) continue;
     if (categoryId && t.category_id !== categoryId) continue;
 
