@@ -3,6 +3,7 @@ import { getCategoryIconComponent } from "@/lib/constants/category-icons";
 
 const VARIANTS = {
   box: { wrapper: "w-9 h-9 rounded-lg", icon: "w-4.5 h-4.5", filled: true },
+  lg: { wrapper: "w-12 h-12 rounded-xl", icon: "w-6 h-6", filled: true },
   chip: { wrapper: "w-5 h-5 rounded-full", icon: "w-3 h-3", filled: true },
   // Glyph polos tanpa latar/box sendiri — dipakai saat ikon perlu langsung
   // berdekatan dgn caption di bawahnya (mis. grid Kategori Cepat), tanpa

@@ -117,6 +117,8 @@ export const CATEGORY_STYLES: Record<string, { mutedBg: string; bright: string }
   "Kesehatan": { mutedBg: "#2E1F26", bright: "#F0554F" },
   "Pendidikan": { mutedBg: "#12332E", bright: "#3ECFAE" },
   "Perawatan Rumah": { mutedBg: "#1E2938", bright: "#8896A8" },
+  "Cicilan/Utang": { mutedBg: "#3A2A12", bright: "#F0A63E" },
+  "Donasi/Sedekah": { mutedBg: "#3A1A2A", bright: "#F06FA0" },
 };
 
 export const DEFAULT_CATEGORY_STYLE = { mutedBg: "#1E2938", bright: "#8896A8" };

@@ -14,12 +14,17 @@ import {
 import { budgetSchema, type BudgetFormValues } from "@/lib/validation/budget";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { CategoryIcon } from "@/components/CategoryIcon";
+import { DonutChart } from "@/components/DonutChart";
 import { Modal } from "@/components/Modal";
 import { ChevronLeftIcon, ChevronRightIcon, CopyIcon } from "@/components/icons";
 import type { Category } from "@/lib/supabase/queries/categories";
 import type { Subcategory } from "@/lib/supabase/queries/subcategories";
+import type { CategorySlice } from "@/lib/supabase/queries/transactions";
 import { useRealtimeTable } from "@/lib/hooks/useRealtimeTable";
 import { formatCycleLabel, shiftCycle } from "@/lib/utils/date";
+import { getCategoryStyle } from "@/lib/constants/enums";
+
+const VISIBLE_CATEGORY_COUNT = 4;
 
 const CATEGORY_LEVEL_OPTION_ID = "";
 const CATEGORY_LEVEL_LABEL = "Kategori Utama (semua sub kategori)";
@@ -70,6 +75,7 @@ export function BudgetsManager({
   const [loading, setLoading] = useState(false);
   const [duplicating, setDuplicating] = useState(false);
   const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(null);
+  const [showAllCategories, setShowAllCategories] = useState(false);
 
   const monthLabel = formatCycleLabel(monthDate, monthStartDay);
 
@@ -118,6 +124,30 @@ export function BudgetsManager({
       })
       .sort((a, b) => b.summaryPercentage - a.summaryPercentage);
   }, [budgets]);
+
+  const totalTarget = categoryGroups.reduce((sum, g) => sum + g.summaryTarget, 0);
+  const totalRealisasi = categoryGroups.reduce((sum, g) => sum + g.summaryRealisasi, 0);
+  const overallPercentage =
+    totalTarget > 0 ? Math.round((totalRealisasi / totalTarget) * 100) : 0;
+
+  // Proporsi realisasi antar kategori (bukan proporsi target) — sama seperti
+  // donut "Pengeluaran per Kategori" di Dashboard, supaya kategori yang
+  // paling banyak makan realisasi bulan ini kelihatan porsinya di donut.
+  const donutSlices: CategorySlice[] = [...categoryGroups]
+    .filter((g) => g.summaryRealisasi > 0)
+    .map((g) => ({
+      categoryId: g.categoryId,
+      categoryName: g.categoryName,
+      amount: g.summaryRealisasi,
+      percentage:
+        totalRealisasi > 0 ? Math.round((g.summaryRealisasi / totalRealisasi) * 100) : 0,
+      color: getCategoryStyle(g.categoryName).bright,
+    }))
+    .sort((a, b) => b.percentage - a.percentage);
+
+  const visibleGroups = showAllCategories
+    ? categoryGroups
+    : categoryGroups.slice(0, VISIBLE_CATEGORY_COUNT);
 
   const expenseCategories = categories.filter((c) => c.type === "expense");
   // Budget yang lagi diedit dikecualikan dari daftar "sudah dipakai" supaya
@@ -317,8 +347,52 @@ export function BudgetsManager({
         </p>
       )}
 
+      {budgets.length > 0 && (
+        <>
+          <div className="rounded-2xl bg-bg-surface border border-border-subtle p-4 flex flex-col gap-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs text-text-secondary">Total Anggaran</p>
+                <p className="text-2xl font-semibold text-text-primary mt-1">
+                  {formatRupiah(totalTarget)}
+                </p>
+              </div>
+              <div className="text-right shrink-0">
+                <p className="text-xs text-text-secondary">Terpakai</p>
+                <p className="text-lg font-semibold text-text-primary">{overallPercentage}%</p>
+              </div>
+            </div>
+            <div className="h-2 rounded-full bg-bg-page overflow-hidden">
+              <div
+                className="h-full rounded-full bg-accent"
+                style={{ width: `${Math.min(overallPercentage, 100)}%` }}
+              />
+            </div>
+            <p className="text-xs text-text-secondary">
+              {formatRupiah(totalRealisasi)} / {formatRupiah(totalTarget)}
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-bg-surface border border-border-subtle p-4">
+            <DonutChart slices={donutSlices} total={totalRealisasi} centerPercentage={overallPercentage} />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-text-primary">Kategori Budget</p>
+            {categoryGroups.length > VISIBLE_CATEGORY_COUNT && (
+              <button
+                onClick={() => setShowAllCategories((prev) => !prev)}
+                className="text-sm text-accent"
+              >
+                {showAllCategories ? "Sembunyikan" : "Lihat Semua"}
+              </button>
+            )}
+          </div>
+        </>
+      )}
+
       <div className="flex flex-col gap-2">
-        {categoryGroups.map((g) => {
+        {visibleGroups.map((g) => {
           const expanded = expandedCategoryId === g.categoryId;
           const barPercentage = Math.min(g.summaryPercentage, 100);
           return (
@@ -333,40 +407,44 @@ export function BudgetsManager({
                 }
                 className="flex items-center gap-3 text-left"
               >
-                <CategoryIcon name={g.categoryName} icon={g.categoryIcon} />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-medium text-text-primary truncate">
-                      {g.categoryName}
-                    </p>
+                <CategoryIcon name={g.categoryName} icon={g.categoryIcon} variant="lg" />
+                <div className="flex-1 min-w-0 flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-text-primary truncate">
+                        {g.categoryName}
+                      </p>
+                      <p className="text-xs text-text-secondary mt-0.5">
+                        {formatRupiah(g.summaryRealisasi)} / {formatRupiah(g.summaryTarget)}
+                      </p>
+                    </div>
                     <span
-                      className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 ${STATUS_STYLE[g.summaryStatus]}`}
+                      className={`text-sm font-semibold shrink-0 ${
+                        g.summaryStatus === "Melebihi" ? "text-danger" : "text-text-primary"
+                      }`}
                     >
-                      {g.summaryStatus}
+                      {g.summaryPercentage}%
                     </span>
+                    <ChevronRightIcon
+                      className={`w-4 h-4 text-text-muted shrink-0 transition-transform ${
+                        expanded ? "rotate-90" : ""
+                      }`}
+                    />
                   </div>
-                  <p className="text-xs text-text-secondary mt-0.5">
-                    {formatRupiah(g.summaryRealisasi)} / {formatRupiah(g.summaryTarget)}
-                  </p>
+
+                  <div className="h-1.5 rounded-full bg-bg-page overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${
+                        g.summaryStatus === "Melebihi" ? "bg-danger" : "bg-success"
+                      }`}
+                      style={{ width: `${barPercentage}%` }}
+                    />
+                  </div>
                 </div>
-                <ChevronRightIcon
-                  className={`w-4 h-4 text-text-muted shrink-0 transition-transform ${
-                    expanded ? "rotate-90" : ""
-                  }`}
-                />
               </button>
 
-              <div className="h-1.5 rounded-full bg-bg-page overflow-hidden">
-                <div
-                  className={`h-full rounded-full ${
-                    g.summaryStatus === "Melebihi" ? "bg-danger" : "bg-success"
-                  }`}
-                  style={{ width: `${barPercentage}%` }}
-                />
-              </div>
-
               {expanded && (
-                <div className="pl-11 flex flex-col gap-3 border-t border-border-subtle pt-3">
+                <div className="pl-[60px] flex flex-col gap-3 border-t border-border-subtle pt-3">
                   {g.entries.map((b) => {
                     const entryBarPercentage = Math.min(b.percentage, 100);
                     return (

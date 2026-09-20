@@ -12,10 +12,14 @@ export function DonutChart({
   slices,
   total,
   budgetTarget,
+  centerPercentage,
 }: {
   slices: CategorySlice[];
   total: number;
   budgetTarget?: number;
+  // Override konten tengah donut jadi "58% Terpakai" (mis. halaman Budget)
+  // alih-alih nominal rupiah (default, dipakai Dashboard).
+  centerPercentage?: number;
 }) {
   const stops = slices.reduce<{ cursor: number; parts: string[] }>(
     (acc, s) => {
@@ -38,14 +42,25 @@ export function DonutChart({
         style={{ background: gradient }}
       >
         <div className="absolute inset-3 rounded-full bg-bg-surface flex flex-col items-center justify-center text-center px-1.5">
-          <span className="text-sm font-bold text-text-primary leading-tight">
-            {formatRupiah(total)}
-          </span>
-          {budgetTarget ? (
-            <span className="text-[10px] text-text-muted leading-tight mt-0.5">
-              dari {formatRupiah(budgetTarget)}
-            </span>
-          ) : null}
+          {centerPercentage !== undefined ? (
+            <>
+              <span className="text-lg font-bold text-text-primary leading-tight">
+                {centerPercentage}%
+              </span>
+              <span className="text-[10px] text-text-muted leading-tight mt-0.5">Terpakai</span>
+            </>
+          ) : (
+            <>
+              <span className="text-sm font-bold text-text-primary leading-tight">
+                {formatRupiah(total)}
+              </span>
+              {budgetTarget ? (
+                <span className="text-[10px] text-text-muted leading-tight mt-0.5">
+                  dari {formatRupiah(budgetTarget)}
+                </span>
+              ) : null}
+            </>
+          )}
         </div>
       </div>
 
