@@ -81,17 +81,51 @@ function parseIndoNumber(raw: string): number | null {
   return Number.isFinite(n) && n > 0 ? Math.round(n) : null;
 }
 
-function extractAmount(lines: string[]): number | null {
-  const totalLineKeywords = ["grand total", "total bayar", "total harga", "total"];
-  for (const keyword of totalLineKeywords) {
-    for (const line of lines) {
-      const lower = line.toLowerCase();
-      if (!lower.includes(keyword)) continue;
-      const match = line.match(/[\d.,]+/g);
-      if (!match) continue;
-      const amount = parseIndoNumber(match[match.length - 1]);
-      if (amount) return amount;
+// Baris yg mengandung kata "total" tapi BUKAN nominal akhir belanja —
+// jangan sampai kepilih (mis. "Sub Total" sebelum diskon/pajak, atau
+// "Total Item"/"Total Qty" yg isinya jumlah barang, bukan rupiah).
+const EXCLUDED_TOTAL_LINE_KEYWORDS = [
+  "subtotal", "sub total", "total item", "total qty", "total barang",
+  "total quantity", "jumlah item", "jumlah barang",
+];
+
+function isExcludedTotalLine(lower: string) {
+  return EXCLUDED_TOTAL_LINE_KEYWORDS.some((k) => lower.includes(k));
+}
+
+// Cari angka di baris `index`, atau kalau tidak ada, di 1-2 baris
+// setelahnya — OCR struk kadang misah label ("TOTAL") & nominalnya ke
+// baris terpisah. `>= 100` sbg sanity check spy tidak kepilih angka kecil
+// yg bukan nominal rupiah (mis. jumlah barang di baris yg sama).
+function findAmountNear(lines: string[], index: number): number | null {
+  for (let i = index; i < Math.min(index + 3, lines.length); i++) {
+    const matches = lines[i].match(/[\d.,]+/g);
+    if (!matches) continue;
+    for (const m of [...matches].reverse()) {
+      const amount = parseIndoNumber(m);
+      if (amount && amount >= 100) return amount;
     }
+  }
+  return null;
+}
+
+function extractAmount(lines: string[]): number | null {
+  const priorityKeywords = ["grand total", "total bayar", "total tagihan", "total belanja"];
+  for (const keyword of priorityKeywords) {
+    const idx = lines.findIndex((l) => l.toLowerCase().includes(keyword));
+    if (idx === -1) continue;
+    const amount = findAmountNear(lines, idx);
+    if (amount) return amount;
+  }
+
+  // "total" generik, tapi lewati baris yg bukan nominal akhir (subtotal dst).
+  const idx = lines.findIndex((l) => {
+    const lower = l.toLowerCase();
+    return lower.includes("total") && !isExcludedTotalLine(lower);
+  });
+  if (idx !== -1) {
+    const amount = findAmountNear(lines, idx);
+    if (amount) return amount;
   }
 
   // Fallback: angka terbesar yg kelihatan seperti nominal rupiah (>= 100)
