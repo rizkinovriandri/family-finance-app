@@ -12,6 +12,7 @@ import {
   type AccountWithBalance,
 } from "@/lib/supabase/queries/accounts";
 import { createBalanceAdjustment } from "@/lib/supabase/queries/transactions";
+import { updateDefaultAccount } from "@/lib/supabase/queries/families";
 import { useRealtimeTable } from "@/lib/hooks/useRealtimeTable";
 import {
   accountSchema,
@@ -29,7 +30,13 @@ import {
   isInvestmentAccountType as isInvestmentType,
 } from "@/lib/constants/enums";
 import { CurrencyInput } from "@/components/CurrencyInput";
-import { UserIcon, LineChartIcon, ChevronRightIcon } from "@/components/icons";
+import {
+  UserIcon,
+  LineChartIcon,
+  ChevronRightIcon,
+  StarIcon,
+  StarFilledIcon,
+} from "@/components/icons";
 import { AccountTypeIcon } from "@/components/AccountTypeIcon";
 import { Field } from "@/components/FormField";
 import { Modal } from "@/components/Modal";
@@ -81,11 +88,15 @@ function formatCurrency(amount: number, currency: string) {
 export function AccountsManager({
   familyId,
   members,
+  currentMemberId,
+  initialDefaultAccountId,
   initialAccounts,
   initialPortfolioValueByAccount,
 }: {
   familyId: string;
   members: Member[];
+  currentMemberId: string;
+  initialDefaultAccountId: string | null;
   initialAccounts: AccountWithBalance[];
   initialPortfolioValueByAccount: Record<string, number>;
 }) {
@@ -94,6 +105,8 @@ export function AccountsManager({
   const [portfolioValueByAccount, setPortfolioValueByAccount] = useState(
     initialPortfolioValueByAccount
   );
+  const [defaultAccountId, setDefaultAccountId] = useState(initialDefaultAccountId);
+  const [settingDefaultId, setSettingDefaultId] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("Tabungan");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingCurrentBalance, setEditingCurrentBalance] = useState<number | null>(null);
@@ -289,6 +302,23 @@ export function AccountsManager({
     setAccounts((prev) => prev.filter((a) => a.id !== accountId));
   }
 
+  // Akun default per user login (family_members.default_account_id) — klik
+  // lagi di akun yang sudah jadi default akan melepasnya (kembali ke
+  // fallback akun pertama di form transaksi).
+  async function handleToggleDefault(accountId: string) {
+    const nextValue = defaultAccountId === accountId ? null : accountId;
+    setSettingDefaultId(accountId);
+    try {
+      const supabase = createClient();
+      await updateDefaultAccount(supabase, currentMemberId, nextValue);
+      setDefaultAccountId(nextValue);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Gagal menyimpan akun default.");
+    } finally {
+      setSettingDefaultId(null);
+    }
+  }
+
   function openAdjustForm(account: AccountWithBalance) {
     setAdjustingAccount(account);
     setAdjustForm({
@@ -435,9 +465,28 @@ export function AccountsManager({
 
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-medium text-text-primary truncate">
-                  {account.name}
-                </p>
+                <span className="flex items-center gap-1 min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => handleToggleDefault(account.id)}
+                    disabled={settingDefaultId === account.id}
+                    aria-label={
+                      defaultAccountId === account.id
+                        ? `${account.name} adalah akun default — klik untuk lepas`
+                        : `Jadikan ${account.name} akun default transaksi`
+                    }
+                    className="shrink-0 text-accent disabled:opacity-60"
+                  >
+                    {defaultAccountId === account.id ? (
+                      <StarFilledIcon className="w-4 h-4" />
+                    ) : (
+                      <StarIcon className="w-4 h-4 text-text-muted" />
+                    )}
+                  </button>
+                  <p className="text-sm font-medium text-text-primary truncate">
+                    {account.name}
+                  </p>
+                </span>
                 <p className="text-sm font-semibold text-text-primary shrink-0">
                   {formatCurrency(displayValue, account.currency)}
                 </p>

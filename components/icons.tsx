@@ -22,6 +22,8 @@ import {
   IconMail,
   IconPencil,
   IconSettings,
+  IconStar,
+  IconStarFilled,
   IconTrash,
   IconTrendingUp,
   IconUser,
@@ -62,6 +64,8 @@ export const PencilIcon = tabler(IconPencil);
 export const CameraIcon = tabler(IconCamera);
 export const TrashIcon = tabler(IconTrash);
 export const CalendarIcon = tabler(IconCalendar);
+export const StarIcon = tabler(IconStar);
+export const StarFilledIcon = tabler(IconStarFilled);
 
 export function EyeIcon({ className, off }: { className?: string; off?: boolean }) {
   const Icon = off ? IconEyeOff : IconEye;

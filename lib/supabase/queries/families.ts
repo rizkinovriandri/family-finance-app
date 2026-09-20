@@ -15,7 +15,9 @@ export async function getMyFamilyMembership(supabase: Client) {
   // semua halaman jadi lumayan berpengaruh ke waktu load.
   const { data: membership, error } = await supabase
     .from("family_members")
-    .select("id, family_id, display_name, avatar_url, families(name, month_start_day)")
+    .select(
+      "id, family_id, display_name, avatar_url, default_account_id, families(name, month_start_day)"
+    )
     .eq("user_id", user.id)
     .limit(1)
     .maybeSingle();
@@ -31,9 +33,22 @@ export async function getMyFamilyMembership(supabase: Client) {
     family_id: membership.family_id,
     display_name: membership.display_name,
     avatar_url: membership.avatar_url,
+    default_account_id: membership.default_account_id,
     family_name: family.name,
     month_start_day: family.month_start_day,
   };
+}
+
+export async function updateDefaultAccount(
+  supabase: Client,
+  memberId: string,
+  accountId: string | null
+) {
+  const { error } = await supabase
+    .from("family_members")
+    .update({ default_account_id: accountId })
+    .eq("id", memberId);
+  if (error) throw error;
 }
 
 export async function updateMonthStartDay(

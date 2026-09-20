@@ -32,6 +32,7 @@ export default async function TransactionsPage() {
         categories={categories}
         subcategories={subcategories}
         defaultMemberId={membership.id}
+        defaultAccountId={membership.default_account_id ?? undefined}
         initialTransactions={transactions}
       />
     </div>

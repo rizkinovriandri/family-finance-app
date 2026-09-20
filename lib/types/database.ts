@@ -80,6 +80,7 @@ export interface Database {
           user_id: string;
           display_name: string;
           avatar_url: string | null;
+          default_account_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -88,6 +89,7 @@ export interface Database {
           user_id: string;
           display_name: string;
           avatar_url?: string | null;
+          default_account_id?: string | null;
           created_at?: string;
         };
         Update: {
@@ -96,6 +98,7 @@ export interface Database {
           user_id?: string;
           display_name?: string;
           avatar_url?: string | null;
+          default_account_id?: string | null;
           created_at?: string;
         };
         Relationships: [
@@ -104,6 +107,13 @@ export interface Database {
             columns: ["family_id"];
             isOneToOne: false;
             referencedRelation: "families";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "family_members_default_account_id_fkey";
+            columns: ["default_account_id"];
+            isOneToOne: false;
+            referencedRelation: "accounts";
             referencedColumns: ["id"];
           },
         ];

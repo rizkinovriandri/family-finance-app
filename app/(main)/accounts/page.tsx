@@ -24,6 +24,8 @@ export default async function AccountsPage() {
       <AccountsManager
         familyId={membership.family_id}
         members={members}
+        currentMemberId={membership.id}
+        initialDefaultAccountId={membership.default_account_id}
         initialAccounts={accounts}
         initialPortfolioValueByAccount={Object.fromEntries(portfolioValueByAccount)}
       />
