@@ -212,8 +212,8 @@ Aturan ini **wajib diikuti** saat implementasi logic transaksi, karena jadi acua
 
 ### Fase 2 (menyusul, di luar scope awal)
 - [x] Portofolio investasi (saham, reksadana, obligasi/sukuk, emas) — dari sheet "Portofolio Investasi". Tabel `investment_holdings` (lihat Bagian 4), halaman `/accounts/[id]/holdings` ("Portofolio"), diakses dari tab Investasi di halaman Akun. Nilai & untung/rugi dihitung otomatis dari kuantitas × harga. Bonus: `app/api/stock-price/route.ts` mengambil harga saham terkini otomatis dari Yahoo Finance. Gap kecil: akun **Investasi Kripto** & **Dana Pensiun** belum punya form holding khusus (input manual).
-- [ ] Kekayaan bersih / net worth tracking — dari sheet "Kekayaan Bersih"
-- [ ] Scan struk otomatis (OCR)
+- [x] Kekayaan bersih / net worth tracking — dari sheet "Kekayaan Bersih". `components/NetWorthView.tsx` + `lib/utils/networth.ts`, diakses lewat tab "Net Worth" di halaman Laporan (`ReportsView.tsx`); aset dari saldo akun + nilai portofolio investasi, dikurangi akun liabilitas (Kartu Kredit, Pinjaman/Utang)
+- [x] Scan struk otomatis (OCR) — tombol "Scan Struk" di form Tambah Transaksi (khusus Pengeluaran), foto struk dikirim ke `app/api/scan-receipt/route.ts` (proxy server-side ke OCR.space API, butuh env var `OCR_SPACE_API_KEY`, daftar gratis di ocr.space/ocrapi tanpa kartu kredit) lalu di-parse (`lib/utils/receiptParser.ts`, heuristik regex) jadi jumlah/tanggal/nama toko/saran kategori buat prefill form. Foto tidak disimpan permanen.
 - [ ] Reminder tagihan rutin
 - [ ] Export laporan ke Excel/PDF
 

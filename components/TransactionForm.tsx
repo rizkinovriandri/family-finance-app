@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   createTransaction,
@@ -17,6 +17,7 @@ import { CurrencyInput } from "@/components/CurrencyInput";
 import { CategoryPicker } from "@/components/CategoryPicker";
 import { SubcategoryPicker } from "@/components/SubcategoryPicker";
 import { Field } from "@/components/FormField";
+import { CameraIcon } from "@/components/icons";
 import type { Category } from "@/lib/supabase/queries/categories";
 import type { Subcategory } from "@/lib/supabase/queries/subcategories";
 import { toLocalISODate } from "@/lib/utils/date";
@@ -85,6 +86,10 @@ export function TransactionForm({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const [scanning, setScanning] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const receiptInputRef = useRef<HTMLInputElement>(null);
+
   const relevantCategories = categories.filter((c) =>
     txType === "Pemasukan" ? c.type === "income" : c.type === "expense"
   );
@@ -93,6 +98,35 @@ export function TransactionForm({
   function handleCategoryChange(id: string) {
     setCategoryId(id);
     setSubcategoryId("");
+  }
+
+  async function handleScanReceipt(file: File) {
+    setScanning(true);
+    setScanError(null);
+    try {
+      const formData = new FormData();
+      formData.set("image", file);
+      const res = await fetch("/api/scan-receipt", { method: "POST", body: formData });
+      const data = await res.json();
+      if (!res.ok) {
+        setScanError(data.error ?? "Gagal memindai struk.");
+        return;
+      }
+
+      if (data.amount) setAmount(data.amount);
+      if (data.date) setDate(data.date);
+      if (data.merchant) setDescription(data.merchant);
+      if (data.categoryName) {
+        const match = categories.find(
+          (c) => c.type === "expense" && c.name === data.categoryName
+        );
+        if (match) handleCategoryChange(match.id);
+      }
+    } catch {
+      setScanError("Gagal memindai struk. Coba lagi nanti.");
+    } finally {
+      setScanning(false);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -182,6 +216,33 @@ export function TransactionForm({
               {t}
             </button>
           ))}
+        </div>
+      )}
+
+      {!editing && txType === "Pengeluaran" && (
+        <div className="flex flex-col gap-1.5">
+          <input
+            ref={receiptInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = "";
+              if (file) handleScanReceipt(file);
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => receiptInputRef.current?.click()}
+            disabled={scanning}
+            className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-border-subtle py-3 text-sm text-accent disabled:opacity-60"
+          >
+            <CameraIcon className="w-4 h-4" />
+            {scanning ? "Memindai struk..." : "Scan Struk"}
+          </button>
+          {scanError && <p className="text-xs text-danger">{scanError}</p>}
         </div>
       )}
 
