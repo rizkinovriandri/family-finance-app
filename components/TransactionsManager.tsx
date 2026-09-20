@@ -16,10 +16,26 @@ import Link from "next/link";
 import { ChevronLeftIcon } from "@/components/icons";
 import { useRealtimeTable } from "@/lib/hooks/useRealtimeTable";
 import { toLocalISODate } from "@/lib/utils/date";
+import {
+  EXPENSE_CATEGORIES,
+  getCategoryStyle,
+  getCategoryTint,
+  INCOME_CATEGORIES,
+} from "@/lib/constants/enums";
 
 type Account = { id: string; name: string };
 type Member = { id: string; display_name: string };
 type Tab = "Semua" | "Pemasukan" | "Pengeluaran";
+type QuickTab = "Pengeluaran" | "Pemasukan";
+
+const QUICK_CATEGORY_COUNT = 8;
+// Urutan kategori default per Bagian 5 CLAUDE.md dipakai sebagai proksi
+// "paling sering dipakai" — kategori sehari-hari (makanan, transportasi, dst)
+// ditaruh duluan, kategori catch-all ("Lainnya") di akhir.
+const QUICK_PRIORITY: Record<QuickTab, readonly string[]> = {
+  Pengeluaran: EXPENSE_CATEGORIES,
+  Pemasukan: INCOME_CATEGORIES,
+};
 
 function formatRupiah(amount: number) {
   return new Intl.NumberFormat("id-ID", {
@@ -92,10 +108,37 @@ export function TransactionsManager({
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<TransactionWithDetails | null>(null);
   const [todayKey, setTodayKey] = useState<string | null>(null);
+  const [quickTab, setQuickTab] = useState<QuickTab>("Pengeluaran");
+  const [quickPreset, setQuickPreset] = useState<{
+    type: QuickTab;
+    categoryId: string;
+  } | null>(null);
 
   useEffect(() => {
     setTodayKey(toLocalISODate(new Date()));
   }, []);
+
+  const quickCategories = useMemo(() => {
+    const byType = categories.filter((c) =>
+      quickTab === "Pemasukan" ? c.type === "income" : c.type === "expense"
+    );
+    const priority = QUICK_PRIORITY[quickTab];
+    const ranked = [...byType].sort((a, b) => {
+      const ai = priority.indexOf(a.name);
+      const bi = priority.indexOf(b.name);
+      if (ai === -1 && bi === -1) return a.name.localeCompare(b.name);
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    });
+    return ranked.slice(0, QUICK_CATEGORY_COUNT);
+  }, [categories, quickTab]);
+
+  function openQuickAdd(categoryId: string) {
+    setEditing(null);
+    setQuickPreset({ type: quickTab, categoryId });
+    setShowForm(true);
+  }
 
   const usedCategories = useMemo(() => {
     const map = new Map<string, { name: string; icon: string | null }>();
@@ -188,6 +231,7 @@ export function TransactionsManager({
         <button
           onClick={() => {
             setEditing(null);
+            setQuickPreset(null);
             setShowForm(true);
           }}
           className="rounded-xl bg-accent px-4 py-2 text-sm font-medium text-white shrink-0"
@@ -201,6 +245,7 @@ export function TransactionsManager({
         onClose={() => {
           setShowForm(false);
           setEditing(null);
+          setQuickPreset(null);
         }}
       >
         <TransactionForm
@@ -212,13 +257,58 @@ export function TransactionsManager({
           defaultMemberId={defaultMemberId}
           defaultAccountId={defaultAccountId}
           editing={editing}
+          initialType={quickPreset?.type}
+          initialCategoryId={quickPreset?.categoryId}
           onSaved={refresh}
           onCancel={() => {
             setShowForm(false);
             setEditing(null);
+            setQuickPreset(null);
           }}
         />
       </Modal>
+
+      <div className="flex flex-col gap-2.5 rounded-2xl bg-bg-surface border border-border-subtle p-3">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-medium text-text-primary">Tambah Cepat</p>
+          <div className="flex rounded-lg bg-bg-page p-1">
+            {(["Pengeluaran", "Pemasukan"] as QuickTab[]).map((t) => (
+              <button
+                key={t}
+                onClick={() => setQuickTab(t)}
+                className={`rounded-md px-2.5 py-1 text-[11px] font-medium ${
+                  quickTab === t ? "bg-accent text-white" : "text-text-secondary"
+                }`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {quickCategories.length === 0 ? (
+          <p className="text-xs text-text-muted">Belum ada kategori {quickTab.toLowerCase()}.</p>
+        ) : (
+          <div className="grid grid-cols-4 gap-2.5">
+            {quickCategories.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => openQuickAdd(c.id)}
+                style={{
+                  backgroundColor: getCategoryStyle(c.name).mutedBg,
+                  borderColor: getCategoryTint(c.name, 0.4),
+                }}
+                className="aspect-square flex flex-col items-center justify-center gap-1 rounded-xl border px-1.5 text-center"
+              >
+                <CategoryIcon name={c.name} icon={c.icon} variant="bare" />
+                <span className="text-[10px] leading-tight text-text-secondary line-clamp-2">
+                  {c.name}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       <input
         value={search}

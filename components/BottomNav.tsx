@@ -3,21 +3,21 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  HomeIcon,
-  WalletIcon,
-  ListIcon,
-  BarChartIcon,
-  LineChartIcon,
-  GridIcon,
-} from "@/components/icons";
+  IconChartBar,
+  IconChartLine,
+  IconHome,
+  IconLayoutGrid,
+  IconListDetails,
+  IconWallet,
+} from "@tabler/icons-react";
 
 const TABS = [
-  { href: "/dashboard", label: "Beranda", icon: HomeIcon },
-  { href: "/accounts", label: "Akun", icon: WalletIcon },
-  { href: "/transactions", label: "Transaksi", icon: ListIcon },
-  { href: "/budgets", label: "Budget", icon: BarChartIcon },
-  { href: "/reports", label: "Laporan", icon: LineChartIcon },
-  { href: "/more", label: "Lainnya", icon: GridIcon },
+  { href: "/dashboard", label: "Beranda", icon: IconHome },
+  { href: "/accounts", label: "Akun", icon: IconWallet },
+  { href: "/transactions", label: "Transaksi", icon: IconListDetails },
+  { href: "/budgets", label: "Budget", icon: IconChartBar },
+  { href: "/reports", label: "Laporan", icon: IconChartLine },
+  { href: "/more", label: "Lainnya", icon: IconLayoutGrid },
 ] as const;
 
 export function BottomNav() {
@@ -37,7 +37,7 @@ export function BottomNav() {
                   active ? "text-accent" : "text-text-muted"
                 }`}
               >
-                <Icon className="w-5 h-5" />
+                <Icon className="w-5 h-5" stroke={1.75} />
                 {tab.label}
               </Link>
             </li>

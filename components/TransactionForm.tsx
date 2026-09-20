@@ -38,6 +38,8 @@ export function TransactionForm({
   defaultMemberId,
   defaultAccountId,
   editing,
+  initialType,
+  initialCategoryId,
   onSaved,
   onCancel,
 }: {
@@ -49,14 +51,18 @@ export function TransactionForm({
   defaultMemberId: string;
   defaultAccountId?: string;
   editing?: TransactionWithDetails | null;
+  initialType?: TxType;
+  initialCategoryId?: string;
   onSaved: () => void;
   onCancel: () => void;
 }) {
   const [txType, setTxType] = useState<TxType>(
-    editing ? (editing.type as TxType) : "Pengeluaran"
+    editing ? (editing.type as TxType) : initialType ?? "Pengeluaran"
   );
   const [amount, setAmount] = useState(editing?.amount ?? 0);
-  const [categoryId, setCategoryId] = useState(editing?.categoryId ?? "");
+  const [categoryId, setCategoryId] = useState(
+    editing?.categoryId ?? initialCategoryId ?? ""
+  );
   const [subcategoryId, setSubcategoryId] = useState(editing?.subcategoryId ?? "");
   const [accountId, setAccountId] = useState(
     editing?.accountId ?? defaultAccountId ?? accounts[0]?.id ?? ""

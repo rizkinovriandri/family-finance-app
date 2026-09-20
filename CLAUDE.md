@@ -15,6 +15,7 @@ Referensi struktur data & proses bisnis diambil dari file `Catatan_Keuangan_Kelu
 - **Hosting:** Vercel (frontend), Supabase (managed backend)
 - **PWA:** next-pwa atau setup manual manifest.json + service worker
 - **Styling/UI:** Tailwind CSS, dark mode sebagai tema utama, mengikuti `docs/design-system.md` untuk warna, tipografi, dan pola komponen
+- **Icon pack:** `@tabler/icons-react` — dipakai untuk seluruh ikon UI aplikasi: set ikon kategori (`lib/constants/category-icons.tsx`, 46 preset dipilih lewat `IconPicker`), bottom navigation (`components/BottomNav.tsx`), dan semua ikon umum lain disentralisasi lewat `components/icons.tsx` (tombol, form, navigasi, dsb — tetap satu titik impor `@/components/icons` untuk semua komponen). Pengecualian: `GoogleIcon`/`AppleIcon` di `components/icons.tsx` tetap SVG custom karena perlu warna brand asli, bukan outline monokrom Tabler.
 
 Jangan menyarankan library/stack lain di luar ini kecuali didiskusikan ulang.
 

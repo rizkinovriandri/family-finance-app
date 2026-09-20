@@ -27,6 +27,7 @@ import {
 } from "@/components/icons";
 import { IconPicker } from "@/components/IconPicker";
 import { CategoryIcon } from "@/components/CategoryIcon";
+import { Modal } from "@/components/Modal";
 import { useRealtimeTable } from "@/lib/hooks/useRealtimeTable";
 
 type Tab = "expense" | "income";
@@ -348,11 +349,15 @@ export function CategoriesManager({
         })}
       </div>
 
-      {showForm && (
-        <form
-          onSubmit={handleSubmit}
-          className="rounded-2xl bg-bg-surface border border-border-subtle p-4 flex flex-col gap-4"
-        >
+      <button
+        onClick={openCreateForm}
+        className="rounded-xl bg-accent py-3 text-white font-medium"
+      >
+        + Tambah Kategori
+      </button>
+
+      <Modal open={showForm} onClose={closeForm}>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <h2 className="text-lg font-medium text-text-primary">
             {editing
               ? "Ubah kategori"
@@ -393,16 +398,7 @@ export function CategoriesManager({
             </button>
           </div>
         </form>
-      )}
-
-      {!showForm && (
-        <button
-          onClick={openCreateForm}
-          className="rounded-xl bg-accent py-3 text-white font-medium"
-        >
-          + Tambah Kategori
-        </button>
-      )}
+      </Modal>
     </div>
   );
 }

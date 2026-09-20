@@ -124,3 +124,33 @@ export const DEFAULT_CATEGORY_STYLE = { mutedBg: "#1E2938", bright: "#8896A8" };
 export function getCategoryStyle(categoryName: string) {
   return CATEGORY_STYLES[categoryName] ?? DEFAULT_CATEGORY_STYLE;
 }
+
+// bg-surface (app/globals.css --color-bg-surface) — dasar campuran solid di
+// bawah, supaya tint kategori tetap kebaca tanpa transparansi (opacity 100%).
+const SURFACE_BASE = { r: 0x0f, g: 0x2a, b: 0x42 };
+
+function hexToRgb(hex: string) {
+  return {
+    r: parseInt(hex.slice(1, 3), 16),
+    g: parseInt(hex.slice(3, 5), 16),
+    b: parseInt(hex.slice(5, 7), 16),
+  };
+}
+
+function toHex(n: number) {
+  return Math.round(n).toString(16).padStart(2, "0");
+}
+
+// Warna solid (bukan rgba) hasil campur `bright` kategori ke SURFACE_BASE —
+// dipakai utk latar kartu/box yang perlu tetap kebaca & full opacity di atas
+// bg-page/bg-surface (keduanya gelap & dekat ke beberapa `mutedBg`, jadi
+// mutedBg sendiri gampang blending kalau dipakai sebagai latar box, bukan
+// cuma latar ikon kecil).
+export function getCategoryTint(categoryName: string, ratio = 0.16) {
+  const { bright } = getCategoryStyle(categoryName);
+  const c = hexToRgb(bright);
+  const r = c.r * ratio + SURFACE_BASE.r * (1 - ratio);
+  const g = c.g * ratio + SURFACE_BASE.g * (1 - ratio);
+  const b = c.b * ratio + SURFACE_BASE.b * (1 - ratio);
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
