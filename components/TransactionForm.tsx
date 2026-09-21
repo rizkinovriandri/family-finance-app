@@ -17,7 +17,7 @@ import { CurrencyInput } from "@/components/CurrencyInput";
 import { CategoryPicker } from "@/components/CategoryPicker";
 import { SubcategoryPicker } from "@/components/SubcategoryPicker";
 import { Field } from "@/components/FormField";
-import { CameraIcon } from "@/components/icons";
+import { CameraIcon, PhotoIcon } from "@/components/icons";
 import type { Category } from "@/lib/supabase/queries/categories";
 import type { Subcategory } from "@/lib/supabase/queries/subcategories";
 import { toLocalISODate } from "@/lib/utils/date";
@@ -88,7 +88,8 @@ export function TransactionForm({
 
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
-  const receiptInputRef = useRef<HTMLInputElement>(null);
+  const receiptCameraInputRef = useRef<HTMLInputElement>(null);
+  const receiptGalleryInputRef = useRef<HTMLInputElement>(null);
 
   const relevantCategories = categories.filter((c) =>
     txType === "Pemasukan" ? c.type === "income" : c.type === "expense"
@@ -222,7 +223,7 @@ export function TransactionForm({
       {!editing && txType === "Pengeluaran" && (
         <div className="flex flex-col gap-1.5">
           <input
-            ref={receiptInputRef}
+            ref={receiptCameraInputRef}
             type="file"
             accept="image/*"
             capture="environment"
@@ -233,15 +234,37 @@ export function TransactionForm({
               if (file) handleScanReceipt(file);
             }}
           />
-          <button
-            type="button"
-            onClick={() => receiptInputRef.current?.click()}
-            disabled={scanning}
-            className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-border-subtle py-3 text-sm text-accent disabled:opacity-60"
-          >
-            <CameraIcon className="w-4 h-4" />
-            {scanning ? "Memindai struk..." : "Scan Struk"}
-          </button>
+          <input
+            ref={receiptGalleryInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = "";
+              if (file) handleScanReceipt(file);
+            }}
+          />
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => receiptCameraInputRef.current?.click()}
+              disabled={scanning}
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-dashed border-border-subtle py-3 text-sm text-accent disabled:opacity-60"
+            >
+              <CameraIcon className="w-4 h-4" />
+              {scanning ? "Memindai..." : "Scan Struk"}
+            </button>
+            <button
+              type="button"
+              onClick={() => receiptGalleryInputRef.current?.click()}
+              disabled={scanning}
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-dashed border-border-subtle py-3 text-sm text-accent disabled:opacity-60"
+            >
+              <PhotoIcon className="w-4 h-4" />
+              Pilih dari Galeri
+            </button>
+          </div>
           {scanError && <p className="text-xs text-danger">{scanError}</p>}
         </div>
       )}

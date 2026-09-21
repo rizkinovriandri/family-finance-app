@@ -21,6 +21,7 @@ import {
   IconLogout,
   IconMail,
   IconPencil,
+  IconPhoto,
   IconSettings,
   IconStar,
   IconStarFilled,
@@ -62,6 +63,7 @@ export const LogOutIcon = tabler(IconLogout);
 export const InfoIcon = tabler(IconInfoCircle);
 export const PencilIcon = tabler(IconPencil);
 export const CameraIcon = tabler(IconCamera);
+export const PhotoIcon = tabler(IconPhoto);
 export const TrashIcon = tabler(IconTrash);
 export const CalendarIcon = tabler(IconCalendar);
 export const StarIcon = tabler(IconStar);
