@@ -7,9 +7,11 @@ import {
   deleteBudget,
   duplicateBudgetsToNextMonth,
   listBudgetsForMonth,
+  listUnbudgetedExpenses,
   statusFor,
   updateBudget,
   type BudgetWithRealization,
+  type UnbudgetedExpense,
 } from "@/lib/supabase/queries/budgets";
 import { budgetSchema, type BudgetFormValues } from "@/lib/validation/budget";
 import { CurrencyInput } from "@/components/CurrencyInput";
@@ -25,6 +27,7 @@ import { formatCycleLabel, shiftCycle } from "@/lib/utils/date";
 import { getCategoryStyle } from "@/lib/constants/enums";
 
 const VISIBLE_CATEGORY_COUNT = 4;
+const VISIBLE_UNBUDGETED_COUNT = 5;
 
 const CATEGORY_LEVEL_OPTION_ID = "";
 const CATEGORY_LEVEL_LABEL = "Kategori Utama (semua sub kategori)";
@@ -41,6 +44,12 @@ function formatRupiah(amount: number) {
   }).format(amount);
 }
 
+function formatShortDate(dateStr: string) {
+  return new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short" }).format(
+    new Date(dateStr + "T00:00:00")
+  );
+}
+
 const STATUS_STYLE: Record<BudgetWithRealization["status"], string> = {
   Aman: "bg-success/15 text-success",
   Waspada: "bg-accent/15 text-accent",
@@ -53,6 +62,7 @@ export function BudgetsManager({
   categories,
   subcategories,
   initialBudgets,
+  initialUnbudgetedExpenses,
   initialMonth,
 }: {
   familyId: string;
@@ -60,10 +70,12 @@ export function BudgetsManager({
   categories: Category[];
   subcategories: Subcategory[];
   initialBudgets: BudgetWithRealization[];
+  initialUnbudgetedExpenses: UnbudgetedExpense[];
   initialMonth: string;
 }) {
   const [monthDate, setMonthDate] = useState(new Date(initialMonth + "T00:00:00"));
   const [budgets, setBudgets] = useState(initialBudgets);
+  const [unbudgetedExpenses, setUnbudgetedExpenses] = useState(initialUnbudgetedExpenses);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<BudgetWithRealization | null>(null);
   const [categoryId, setCategoryId] = useState("");
@@ -76,6 +88,7 @@ export function BudgetsManager({
   const [duplicating, setDuplicating] = useState(false);
   const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(null);
   const [showAllCategories, setShowAllCategories] = useState(false);
+  const [showAllUnbudgeted, setShowAllUnbudgeted] = useState(false);
 
   const monthLabel = formatCycleLabel(monthDate, monthStartDay);
 
@@ -129,6 +142,11 @@ export function BudgetsManager({
   const totalRealisasi = categoryGroups.reduce((sum, g) => sum + g.summaryRealisasi, 0);
   const overallPercentage =
     totalTarget > 0 ? Math.round((totalRealisasi / totalTarget) * 100) : 0;
+
+  const totalUnbudgeted = unbudgetedExpenses.reduce((sum, t) => sum + t.amount, 0);
+  const visibleUnbudgeted = showAllUnbudgeted
+    ? unbudgetedExpenses
+    : unbudgetedExpenses.slice(0, VISIBLE_UNBUDGETED_COUNT);
 
   // Proporsi realisasi antar kategori (bukan proporsi target) — sama seperti
   // donut "Pengeluaran per Kategori" di Dashboard, supaya kategori yang
@@ -184,7 +202,12 @@ export function BudgetsManager({
 
   async function loadMonth(date: Date) {
     const supabase = createClient();
-    setBudgets(await listBudgetsForMonth(supabase, familyId, date, monthStartDay));
+    const [nextBudgets, nextUnbudgeted] = await Promise.all([
+      listBudgetsForMonth(supabase, familyId, date, monthStartDay),
+      listUnbudgetedExpenses(supabase, familyId, date, monthStartDay),
+    ]);
+    setBudgets(nextBudgets);
+    setUnbudgetedExpenses(nextUnbudgeted);
   }
 
   useRealtimeTable("budgets", familyId, () => loadMonth(monthDate));
@@ -487,6 +510,51 @@ export function BudgetsManager({
           );
         })}
       </div>
+
+      {unbudgetedExpenses.length > 0 && (
+        <div className="rounded-2xl bg-bg-surface border border-border-subtle p-4 flex flex-col gap-3">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium text-text-primary">Di Luar Budget</p>
+              <p className="text-xs text-text-secondary mt-0.5">
+                Pengeluaran bulan ini yang kategorinya belum dianggarkan
+              </p>
+            </div>
+            <p className="text-sm font-semibold text-danger shrink-0">
+              {formatRupiah(totalUnbudgeted)}
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {visibleUnbudgeted.map((t) => (
+              <div key={t.id} className="flex items-center gap-3">
+                <CategoryIcon name={t.categoryName} icon={t.categoryIcon} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-text-primary truncate">
+                    {t.categoryName}
+                    {t.subcategoryName ? ` · ${t.subcategoryName}` : ""}
+                  </p>
+                  <p className="text-xs text-text-secondary truncate">
+                    {t.description || t.accountName} · {formatShortDate(t.date)}
+                  </p>
+                </div>
+                <p className="text-sm font-medium text-danger shrink-0">
+                  {formatRupiah(t.amount)}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          {unbudgetedExpenses.length > VISIBLE_UNBUDGETED_COUNT && (
+            <button
+              onClick={() => setShowAllUnbudgeted((prev) => !prev)}
+              className="text-sm text-accent text-center"
+            >
+              {showAllUnbudgeted ? "Sembunyikan" : `Lihat semua (${unbudgetedExpenses.length})`}
+            </button>
+          )}
+        </div>
+      )}
 
       <Modal open={showForm} onClose={() => setShowForm(false)}>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">

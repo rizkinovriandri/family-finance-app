@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/types/database";
 import type { BudgetFormValues } from "@/lib/validation/budget";
-import { getCycleStart, shiftCycle, toLocalISODate } from "@/lib/utils/date";
+import { getCycleRange, getCycleStart, shiftCycle, toLocalISODate } from "@/lib/utils/date";
 
 type Client = SupabaseClient<Database>;
 
@@ -123,6 +123,103 @@ export async function updateBudget(
 export async function deleteBudget(supabase: Client, budgetId: string) {
   const { error } = await supabase.from("budgets").delete().eq("id", budgetId);
   if (error) throw error;
+}
+
+export interface UnbudgetedExpense {
+  id: string;
+  date: string;
+  amount: number;
+  description: string | null;
+  categoryId: string;
+  categoryName: string;
+  categoryIcon: string | null;
+  subcategoryId: string | null;
+  subcategoryName: string | null;
+  accountName: string;
+}
+
+// Transaksi pengeluaran bulan ini yang kategori (atau kombinasi kategori +
+// sub kategorinya) belum dibuatkan budget sama sekali — supaya kelihatan
+// pengeluaran mana yang "lolos" dari anggaran yang sudah dibuat. Kategori
+// tercakup kalau ada budget level kategori (subcategory_id null, roll-up
+// semua sub kategori di dalamnya) ATAU budget spesifik untuk sub kategori
+// transaksi itu — konsisten dengan logic realisasi di budget_realizations.
+export async function listUnbudgetedExpenses(
+  supabase: Client,
+  familyId: string,
+  monthDate: Date,
+  monthStartDay: number
+): Promise<UnbudgetedExpense[]> {
+  const cycleStart = getCycleStart(monthDate, monthStartDay);
+  const { start, end } = getCycleRange(cycleStart, monthStartDay);
+
+  const [
+    { data: budgets, error: budgetError },
+    { data: transactions, error: txError },
+    { data: categories, error: catError },
+    { data: subcategories, error: subError },
+    { data: accounts, error: accError },
+  ] = await Promise.all([
+    supabase
+      .from("budgets")
+      .select("category_id, subcategory_id")
+      .eq("family_id", familyId)
+      .eq("month", toLocalISODate(cycleStart)),
+    supabase
+      .from("transactions")
+      .select("id, date, amount, description, category_id, subcategory_id, account_id")
+      .eq("family_id", familyId)
+      .eq("type", "Pengeluaran")
+      .is("transfer_pair_id", null)
+      .gte("date", start)
+      .lt("date", end),
+    supabase.from("categories").select("id, name, icon"),
+    supabase.from("subcategories").select("id, name").eq("family_id", familyId),
+    supabase.from("accounts").select("id, name").eq("family_id", familyId),
+  ]);
+
+  if (budgetError) throw budgetError;
+  if (txError) throw txError;
+  if (catError) throw catError;
+  if (subError) throw subError;
+  if (accError) throw accError;
+
+  const categoryLevelBudgeted = new Set(
+    budgets.filter((b) => b.subcategory_id === null).map((b) => b.category_id)
+  );
+  const subcategoryBudgeted = new Set(
+    budgets
+      .filter((b) => b.subcategory_id !== null)
+      .map((b) => `${b.category_id}:${b.subcategory_id}`)
+  );
+
+  const categoryById = new Map(categories.map((c) => [c.id, c]));
+  const subcategoryNameById = new Map(subcategories.map((s) => [s.id, s.name]));
+  const accountNameById = new Map(accounts.map((a) => [a.id, a.name]));
+
+  return transactions
+    .filter((t) => {
+      if (categoryLevelBudgeted.has(t.category_id)) return false;
+      if (t.subcategory_id && subcategoryBudgeted.has(`${t.category_id}:${t.subcategory_id}`)) {
+        return false;
+      }
+      return true;
+    })
+    .map((t) => ({
+      id: t.id,
+      date: t.date,
+      amount: t.amount,
+      description: t.description,
+      categoryId: t.category_id,
+      categoryName: categoryById.get(t.category_id)?.name ?? "Lainnya",
+      categoryIcon: categoryById.get(t.category_id)?.icon ?? null,
+      subcategoryId: t.subcategory_id,
+      subcategoryName: t.subcategory_id
+        ? (subcategoryNameById.get(t.subcategory_id) ?? null)
+        : null,
+      accountName: accountNameById.get(t.account_id) ?? "-",
+    }))
+    .sort((a, b) => b.amount - a.amount);
 }
 
 export interface DuplicateBudgetsResult {

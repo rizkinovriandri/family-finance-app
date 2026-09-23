@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getMyFamilyMembership } from "@/lib/supabase/queries/families";
 import { listCategories } from "@/lib/supabase/queries/categories";
 import { listSubcategories } from "@/lib/supabase/queries/subcategories";
-import { listBudgetsForMonth } from "@/lib/supabase/queries/budgets";
+import { listBudgetsForMonth, listUnbudgetedExpenses } from "@/lib/supabase/queries/budgets";
 import { BudgetsManager } from "@/components/BudgetsManager";
 import { getCycleStart, toLocalISODate } from "@/lib/utils/date";
 
@@ -17,10 +17,11 @@ export default async function BudgetsPage() {
 
   const monthStart = getCycleStart(new Date(), membership.month_start_day);
 
-  const [categories, subcategories, budgets] = await Promise.all([
+  const [categories, subcategories, budgets, unbudgetedExpenses] = await Promise.all([
     listCategories(supabase),
     listSubcategories(supabase, membership.family_id),
     listBudgetsForMonth(supabase, membership.family_id, monthStart, membership.month_start_day),
+    listUnbudgetedExpenses(supabase, membership.family_id, monthStart, membership.month_start_day),
   ]);
 
   return (
@@ -31,6 +32,7 @@ export default async function BudgetsPage() {
         categories={categories}
         subcategories={subcategories}
         initialBudgets={budgets}
+        initialUnbudgetedExpenses={unbudgetedExpenses}
         initialMonth={toLocalISODate(monthStart)}
       />
     </div>
