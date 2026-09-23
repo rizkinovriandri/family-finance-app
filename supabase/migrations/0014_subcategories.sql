@@ -4,7 +4,7 @@
 -- seperti categories.is_default) karena rinciannya sangat spesifik per
 -- keluarga.
 
-create table subcategories (
+create table if not exists subcategories (
   id uuid primary key default gen_random_uuid(),
   family_id uuid not null references families(id) on delete cascade,
   category_id uuid not null references categories(id) on delete cascade,
@@ -13,28 +13,40 @@ create table subcategories (
   unique (family_id, category_id, name)
 );
 
-create index idx_subcategories_family on subcategories(family_id);
-create index idx_subcategories_category on subcategories(category_id);
+create index if not exists idx_subcategories_family on subcategories(family_id);
+create index if not exists idx_subcategories_category on subcategories(category_id);
 
 alter table subcategories enable row level security;
 
+drop policy if exists "Lihat sub kategori family sendiri" on subcategories;
 create policy "Lihat sub kategori family sendiri"
   on subcategories for select
   using (is_family_member(family_id));
 
+drop policy if exists "Tambah sub kategori ke family sendiri" on subcategories;
 create policy "Tambah sub kategori ke family sendiri"
   on subcategories for insert
   with check (is_family_member(family_id));
 
+drop policy if exists "Update sub kategori family sendiri" on subcategories;
 create policy "Update sub kategori family sendiri"
   on subcategories for update
   using (is_family_member(family_id));
 
+drop policy if exists "Hapus sub kategori family sendiri" on subcategories;
 create policy "Hapus sub kategori family sendiri"
   on subcategories for delete
   using (is_family_member(family_id));
 
-alter publication supabase_realtime add table subcategories;
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'subcategories'
+  ) then
+    alter publication supabase_realtime add table subcategories;
+  end if;
+end $$;
 
 -- Transaksi & budget bisa opsional dirincikan per sub kategori.
 alter table transactions add column if not exists subcategory_id uuid references subcategories(id) on delete set null;
@@ -49,7 +61,7 @@ alter table budgets add column if not exists subcategory_id uuid references subc
 -- diperlakukan sebagai nilai yang sama saat dibandingkan.
 alter table budgets drop constraint if exists budgets_family_id_month_category_id_key;
 
-create unique index budgets_unique_month_category_subcategory
+create unique index if not exists budgets_unique_month_category_subcategory
   on budgets (family_id, month, category_id, coalesce(subcategory_id, '00000000-0000-0000-0000-000000000000'::uuid));
 
 -- Realisasi: budget per sub kategori cuma menjumlahkan transaksi di sub

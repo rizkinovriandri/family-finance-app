@@ -12,10 +12,12 @@ on conflict (id) do nothing;
 -- Konvensi path: "{user_id}/{filename}" — setiap user hanya boleh
 -- upload/ubah/hapus file di folder miliknya sendiri (folder pertama di path
 -- harus sama dengan auth.uid()).
+drop policy if exists "Lihat semua foto profil" on storage.objects;
 create policy "Lihat semua foto profil"
   on storage.objects for select
   using (bucket_id = 'avatars');
 
+drop policy if exists "Upload foto profil sendiri" on storage.objects;
 create policy "Upload foto profil sendiri"
   on storage.objects for insert
   with check (
@@ -23,6 +25,7 @@ create policy "Upload foto profil sendiri"
     and (storage.foldername(name))[1] = auth.uid()::text
   );
 
+drop policy if exists "Update foto profil sendiri" on storage.objects;
 create policy "Update foto profil sendiri"
   on storage.objects for update
   using (
@@ -30,6 +33,7 @@ create policy "Update foto profil sendiri"
     and (storage.foldername(name))[1] = auth.uid()::text
   );
 
+drop policy if exists "Hapus foto profil sendiri" on storage.objects;
 create policy "Hapus foto profil sendiri"
   on storage.objects for delete
   using (

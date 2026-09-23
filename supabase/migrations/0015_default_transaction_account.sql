@@ -4,4 +4,4 @@
 -- pakai OVO), tanpa saling menimpa preferensi anggota lain.
 
 alter table family_members
-  add column default_account_id uuid references accounts(id) on delete set null;
+  add column if not exists default_account_id uuid references accounts(id) on delete set null;
